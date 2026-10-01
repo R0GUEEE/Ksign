@@ -31,6 +31,7 @@ extension Storage {
 		
         saveContext()
         generator.impactOccurred()
+        CertificateExpiryManager.schedule(for: new)
         completion(nil)
 	}
     
@@ -46,6 +47,7 @@ extension Storage {
                 DispatchQueue.main.async {
                     cert.revoked = true
                     Storage.shared.saveContext()
+                    CertificateExpiryManager.cancel(for: cert)
                 }
             }
         }
@@ -67,13 +69,31 @@ extension Storage {
 					try FileManager.default.removeItem(at: url)
 				}
 			}
+			CertificateExpiryManager.cancel(for: cert)
 			context.delete(cert)
 			saveContext()
 		} catch {
 			print(error)
 		}
 	}
-		
+	
+	/// Renames a certificate — there is otherwise no way to change the
+	/// nickname once it has been imported. Passing `nil` or a blank string
+	/// clears it, falling back to the provisioning profile's own name.
+	func renameCertificate(_ cert: CertificatePair, to nickname: String?) {
+		let trimmed = nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
+		cert.nickname = (trimmed?.isEmpty ?? true) ? nil : trimmed
+		saveContext()
+	}
+	
+	/// The `.p12` + `.mobileprovision` pair backing a certificate, for export.
+	/// Certificates are otherwise stranded inside the app's container — which
+	/// matters most for a paid certificate that would have to be re-issued
+	/// from the developer portal if the app were ever reinstalled.
+	func exportFiles(for cert: CertificatePair) -> [URL] {
+		[FileRequest.certificate, .provision].compactMap { getFile($0, from: cert) }
+	}
+	
 	enum FileRequest: String {
 		case certificate = "p12"
 		case provision = "mobileprovision"

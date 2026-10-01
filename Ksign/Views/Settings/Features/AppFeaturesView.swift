@@ -12,6 +12,20 @@ import UserNotifications
 struct AppFeaturesView: View {
     @StateObject private var _optionsManager = OptionsManager.shared
     
+    private var _certificateExpiryNotifications: Binding<Bool> {
+        Binding(
+            get: { _optionsManager.options.certificateExpiryNotifications ?? false },
+            set: { _optionsManager.options.certificateExpiryNotifications = $0 }
+        )
+    }
+    
+    private var _certificateExpiryNotifyDaysBefore: Binding<Int> {
+        Binding(
+            get: { _optionsManager.options.certificateExpiryNotifyDaysBefore ?? 3 },
+            set: { _optionsManager.options.certificateExpiryNotifyDaysBefore = $0 }
+        )
+    }
+    
     var body: some View {
         NBList(.localized("App Features")) {
             Section {
@@ -33,10 +47,40 @@ struct AppFeaturesView: View {
                     Label(.localized("Notify when download is completed"), systemImage: "bell")
                 }
                 .onChange(of: _optionsManager.options.notifications) { enabled in
-                    _notificationsAuthorization(enabled)
+                    _requestNotificationAuthorizationIfNeeded(enabled) {
+                        _optionsManager.options.notifications = false
+                    }
                 }
             } footer: {
                 Text(.localized("This will notify you when the download is completed."))
+            }
+            Section {
+                Toggle(isOn: _certificateExpiryNotifications) {
+                    Label(.localized("Notify before a certificate expires"), systemImage: "calendar.badge.exclamationmark")
+                }
+                .onChange(of: _certificateExpiryNotifications.wrappedValue) { enabled in
+                    _requestNotificationAuthorizationIfNeeded(enabled) {
+                        _certificateExpiryNotifications.wrappedValue = false
+                    }
+                    CertificateExpiryManager.rescheduleAll()
+                }
+                
+                if _certificateExpiryNotifications.wrappedValue {
+                    Picker(.localized("Notify Before"), selection: _certificateExpiryNotifyDaysBefore) {
+                        ForEach(Options.certificateExpiryNotifyDaysBeforeValues, id: \.self) { days in
+                            let label: String = days == 0
+                                ? .localized("Day of expiration")
+                                : .localized("%lld days before", arguments: days)
+                            Text(label)
+                                .tag(days)
+                        }
+                    }
+                    .onChange(of: _certificateExpiryNotifyDaysBefore.wrappedValue) { _ in
+                        CertificateExpiryManager.rescheduleAll()
+                    }
+                }
+            } footer: {
+                Text(.localized("This will notify you ahead of a certificate's expiration date, so you have time to renew it before your signed apps stop opening."))
             }
             Section {
                 Toggle(isOn: $_optionsManager.options.saveAppStoreDownloadsToDownloadsFolder) {
@@ -51,7 +95,7 @@ struct AppFeaturesView: View {
         }
     }
 
-    private func _notificationsAuthorization(_ enabled: Bool) {
+    private func _requestNotificationAuthorizationIfNeeded(_ enabled: Bool, onDenied: @escaping () -> Void) {
         guard enabled else { return }
         
         UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -60,13 +104,13 @@ struct AppFeaturesView: View {
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
                     DispatchQueue.main.async {
                         if !granted {
-                            _optionsManager.options.notifications = false
+                            onDenied()
                         }
                     }
                 }
             case .denied:
                 DispatchQueue.main.async {
-                    _optionsManager.options.notifications = false
+                    onDenied()
                     
                     let cancel = UIAlertAction(title: .localized("Cancel"), style: .cancel)
                     let ok = UIAlertAction(title: .localized("Open Settings"), style: .default) { _ in

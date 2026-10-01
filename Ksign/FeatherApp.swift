@@ -93,6 +93,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         _bootstrapServerCertificates()
         _addDefaultCertificates()
+        CertificateExpiryManager.rescheduleAll()
 
         return true
     }

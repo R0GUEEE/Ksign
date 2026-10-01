@@ -112,6 +112,10 @@ struct Options: Codable, Equatable {
     var signingLogs: Bool
     /// If Ksign should notify when download is completed
     var notifications: Bool
+	/// If Ksign should notify before a certificate expires
+	var certificateExpiryNotifications: Bool?
+	/// How many days before expiration to send that notification
+	var certificateExpiryNotifyDaysBefore: Int?
 	/// prefix/suffix
 	var prefix: String?
 	var suffix: String?
@@ -156,6 +160,8 @@ struct Options: Codable, Equatable {
         backgroundAudio: true,
         signingLogs: false,
         notifications: false,
+        certificateExpiryNotifications: false,
+        certificateExpiryNotifyDaysBefore: 3,
         prefix: nil,
         suffix: nil,
         saveAppStoreDownloadsToDownloadsFolder: true,
@@ -170,6 +176,8 @@ struct Options: Codable, Equatable {
 	static let appAppearanceValues = ["Default", "Light", "Dark"]
 	/// Default values for `minimumAppRequirement`
 	static let appMinimumAppRequirementValues = ["Default", "16.0", "15.0", "14.0", "13.0", "12.0"]
+	/// Selectable lead times (in days) for `certificateExpiryNotifyDaysBefore`
+	static let certificateExpiryNotifyDaysBeforeValues = [0, 1, 3, 7, 14, 30]
 	/// Default random value for `ppqString`
 	static func randomString() -> String {
 		let letters = UUID().uuidString
