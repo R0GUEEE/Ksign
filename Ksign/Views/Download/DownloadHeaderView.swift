@@ -94,8 +94,8 @@ struct DownloadItemView: View {
                     }
                 }
                 .font(.caption)
+                .foregroundColor(.secondary)
             }
-			.foregroundColor(.secondary)
 		}
 		.padding(.vertical, 4)
 		.onReceive(download.$progress) { self.progress = $0 }
