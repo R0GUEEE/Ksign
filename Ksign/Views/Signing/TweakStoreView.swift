@@ -4,30 +4,40 @@ import NimbleViews
 struct TweakStoreView: View {
     @StateObject private var store = TweakStoreManager.shared
     @Binding var options: Options
+    var bundleIdentifier: String?
     @State private var search = ""
     @State private var sourceText = ""
     @State private var downloading: Set<String> = []
+    @State private var compatibleOnly = true
+    @State private var favoritesOnly = false
 
     private var filtered: [TweakStoreItem] {
-        guard !search.isEmpty else { return store.items }
-        return store.items.filter {
-            $0.name.localizedCaseInsensitiveContains(search) ||
-            ($0.author?.localizedCaseInsensitiveContains(search) ?? false) ||
-            ($0.tags?.contains(where: { $0.localizedCaseInsensitiveContains(search) }) ?? false)
+        store.items.filter { item in
+            (!compatibleOnly || item.isCompatible(with: bundleIdentifier)) &&
+            (!favoritesOnly || store.favorites.contains(item.id)) &&
+            (search.isEmpty ||
+             item.name.localizedCaseInsensitiveContains(search) ||
+             (item.author?.localizedCaseInsensitiveContains(search) ?? false) ||
+             (item.category?.localizedCaseInsensitiveContains(search) ?? false) ||
+             (item.tags?.contains { $0.localizedCaseInsensitiveContains(search) } ?? false))
         }
     }
 
     var body: some View {
         List {
+            if bundleIdentifier != nil {
+                Section {
+                    Toggle(.localized("Compatible with Current App"), isOn: $compatibleOnly)
+                    Toggle(.localized("Favorites Only"), isOn: $favoritesOnly)
+                }
+            }
             Section {
                 HStack {
                     TextField("https://example.com/tweaks.json", text: $sourceText)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
                     Button(.localized("Add")) {
                         guard let url = URL(string: sourceText), url.scheme == "https" else { return }
-                        store.addSource(url)
-                        sourceText = ""
+                        store.addSource(url); sourceText = ""
                         Task { await store.refresh() }
                     }
                 }
@@ -41,38 +51,62 @@ struct TweakStoreView: View {
                 }
             } header: { Text(.localized("Sources")) }
 
-            Section {
-                ForEach(filtered) { item in
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(item.name).font(.headline)
-                                Text([item.author, item.version].compactMap { $0 }.joined(separator: " • "))
-                                    .font(.caption).foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Button {
-                                Task { await download(item) }
-                            } label: {
-                                if downloading.contains(item.id) { ProgressView() }
-                                else { Image(systemName: "arrow.down.circle") }
-                            }
-                            .disabled(downloading.contains(item.id))
-                        }
-                        if let description = item.description {
-                            Text(description).font(.caption).foregroundColor(.secondary).lineLimit(3)
-                        }
-                        if let ids = item.bundleIdentifiers, !ids.isEmpty {
-                            Text(ids.joined(separator: ", ")).font(.caption2).foregroundColor(.secondary).lineLimit(1)
-                        }
-                    }.padding(.vertical, 3)
+            if !store.items.filter({ $0.featured == true }).isEmpty && search.isEmpty && !favoritesOnly {
+                Section(.localized("Featured")) {
+                    ForEach(store.items.filter { $0.featured == true && (!compatibleOnly || $0.isCompatible(with: bundleIdentifier)) }) {
+                        packageRow($0)
+                    }
                 }
-            } header: { Text(.localized("Tweaks")) }
+            }
+
+            Section(.localized("Tweaks")) {
+                ForEach(filtered) { packageRow($0) }
+            }
         }
         .navigationTitle(.localized("Tweak Store"))
         .searchable(text: $search)
         .refreshable { await store.refresh() }
         .task { await store.refresh() }
+        .overlay {
+            if store.isLoading && store.items.isEmpty { ProgressView() }
+        }
+    }
+
+    @ViewBuilder private func packageRow(_ item: TweakStoreItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(item.name).font(.headline)
+                        if item.featured == true { Image(systemName: "star.fill").font(.caption) }
+                    }
+                    Text([item.author, item.version, item.category].compactMap { $0 }.joined(separator: " • "))
+                        .font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+                Button { store.toggleFavorite(item) } label: {
+                    Image(systemName: store.favorites.contains(item.id) ? "heart.fill" : "heart")
+                }.buttonStyle(.borderless)
+                Button { Task { await download(item) } } label: {
+                    if downloading.contains(item.id) { ProgressView() }
+                    else if store.isInstalled(item) { Image(systemName: "checkmark.circle.fill") }
+                    else { Image(systemName: "arrow.down.circle") }
+                }.buttonStyle(.borderless).disabled(downloading.contains(item.id))
+            }
+            if let description = item.description {
+                Text(description).font(.caption).foregroundColor(.secondary).lineLimit(3)
+            }
+            HStack(spacing: 8) {
+                if item.isCompatible(with: bundleIdentifier) {
+                    Label(.localized("Compatible"), systemImage: "checkmark.shield").font(.caption2)
+                } else {
+                    Label(.localized("Other App"), systemImage: "exclamationmark.triangle").font(.caption2)
+                }
+                if let minimumIOS = item.minimumIOS {
+                    Text("iOS \(minimumIOS)+").font(.caption2)
+                }
+            }.foregroundColor(.secondary)
+        }.padding(.vertical, 3)
     }
 
     private func download(_ item: TweakStoreItem) async {
@@ -81,8 +115,6 @@ struct TweakStoreView: View {
         do {
             let url = try await store.download(item)
             if !options.injectionFiles.contains(url) { options.injectionFiles.append(url) }
-        } catch {
-            store.errorMessage = error.localizedDescription
-        }
+        } catch { store.errorMessage = error.localizedDescription }
     }
 }
