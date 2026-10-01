@@ -15,10 +15,18 @@ struct SigningTweaksView: View {
 	@State private var _enabledTweaks: Set<URL> = []
 	
 	@Binding var options: Options
+    var app: AppInfoPresentable? = nil
 	
 	// MARK: Body
 	var body: some View {
 		NBList(.localized("Tweaks")) {
+            Section {
+                NavigationLink {
+                    TweakStoreView(options: $options, bundleIdentifier: app?.identifier)
+                } label: {
+                    Label(.localized("Tweak Store"), systemImage: "bag")
+                }
+            }
 			NBSection(.localized("Injection")) {
 				Picker(selection: $options.injectPath) {
 					ForEach(Options.InjectPath.allCases, id: \.rawValue) { path in
