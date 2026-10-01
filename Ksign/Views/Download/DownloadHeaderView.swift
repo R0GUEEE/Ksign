@@ -95,7 +95,6 @@ struct DownloadItemView: View {
                 }
                 .font(.caption)
             }
-			.font(.caption)
 			.foregroundColor(.secondary)
 		}
 		.padding(.vertical, 4)
