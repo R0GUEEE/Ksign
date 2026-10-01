@@ -156,36 +156,43 @@ enum FR {
 	}
 	
 	#if SERVER
-	static func downloadSSLCertificates(
-		from urlString: String,
-		completion: @escaping (Bool) -> Void
-	) {
-		let generator = UINotificationFeedbackGenerator()
-		generator.prepare()
+	/// Generates a brand-new on-device Certificate Authority and leaf server
+	/// certificate, replacing the discontinued `backloop.dev` dependency.
+	///
+	/// This never touches the network: the root CA and leaf certificate are
+	/// generated entirely locally using `swift-certificates`. Returns the
+	/// file URL of the DER-encoded root CA so callers can offer it for the
+	/// user to trust/install, exactly as a self-hosted `mkcert` root would
+	/// need to be.
+	@discardableResult
+	static func generateLocalSSLCertificates() throws -> URL {
+		let pack = try LocalCertificateAuthority.generate()
+		try writeSSLCertificates(cert: pack.cert, key: pack.key, commonName: pack.commonName)
 		
-		NBFetchService().fetch(from: urlString) { (result: Result<ServerPackModel, Error>) in
-			switch result {
-			case .success(let pack):
-				do {
-					let serverDir = URL.documentsDirectory.appendingPathComponent("App").appendingPathComponent("Server")
-					let pemURL = serverDir.appendingPathComponent("server.pem")
-					let crtURL = serverDir.appendingPathComponent("server.crt")
-					let commonNameURL = serverDir.appendingPathComponent("commonName.txt")
-					
-					try FileManager.default.createDirectoryIfNeeded(at: serverDir)
-					try pack.key.write(to: pemURL, atomically: true, encoding: .utf8)
-					try pack.cert.write(to: crtURL, atomically: true, encoding: .utf8)
-					try pack.info.domains.commonName.write(to: commonNameURL, atomically: true, encoding: .utf8)
-					
-					generator.notificationOccurred(.success)
-					completion(true)
-				} catch {
-					completion(false)
-				}
-			case .failure(_):
-				completion(false)
-			}
-		}
+		// Keep the CA around so Settings can offer to (re)share it without
+		// having to regenerate (which would invalidate the leaf cert on disk).
+		let serverDir = URL.documentsDirectory.appendingPathComponent("App").appendingPathComponent("Server")
+		try FileManager.default.createDirectoryIfNeeded(at: serverDir)
+		
+		let caPemURL = serverDir.appendingPathComponent("ca.pem")
+		try pack.ca.write(to: caPemURL, atomically: true, encoding: .utf8)
+		
+		let caCerURL = serverDir.appendingPathComponent("Ksign Local CA.cer")
+		try pack.caDER.write(to: caCerURL, options: .atomic)
+		
+		return caCerURL
+	}
+	
+	private static func writeSSLCertificates(cert: String, key: String, commonName: String) throws {
+		let serverDir = URL.documentsDirectory.appendingPathComponent("App").appendingPathComponent("Server")
+		let pemURL = serverDir.appendingPathComponent("server.pem")
+		let crtURL = serverDir.appendingPathComponent("server.crt")
+		let commonNameURL = serverDir.appendingPathComponent("commonName.txt")
+		
+		try FileManager.default.createDirectoryIfNeeded(at: serverDir)
+		try key.write(to: pemURL, atomically: true, encoding: .utf8)
+		try cert.write(to: crtURL, atomically: true, encoding: .utf8)
+		try commonName.write(to: commonNameURL, atomically: true, encoding: .utf8)
 	}
 	#endif
 	
