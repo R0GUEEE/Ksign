@@ -15,6 +15,19 @@ struct TweakStoreItem: Codable, Identifiable, Hashable {
     var iconURL: URL?
     var bundleIdentifiers: [String]?
     var tags: [String]?
+    var category: String?
+    var featured: Bool?
+    var minimumIOS: String?
+    var screenshotURLs: [URL]?
+    var homepageURL: URL?
+    var sha256: String?
+
+    func isCompatible(with bundleIdentifier: String?) -> Bool {
+        guard let targets = bundleIdentifiers, !targets.isEmpty, let bundleIdentifier else { return true }
+        return targets.contains { target in
+            target == "*" || target.caseInsensitiveCompare(bundleIdentifier) == .orderedSame
+        }
+    }
 }
 
 @MainActor
@@ -26,6 +39,33 @@ final class TweakStoreManager: ObservableObject {
     @Published var errorMessage: String?
 
     private let sourcesKey = "ksign.tweakStore.sources"
+    private let favoritesKey = "ksign.tweakStore.favorites"
+
+    var favorites: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: favoritesKey) ?? []) }
+        set {
+            UserDefaults.standard.set(Array(newValue), forKey: favoritesKey)
+            objectWillChange.send()
+        }
+    }
+
+    func toggleFavorite(_ item: TweakStoreItem) {
+        var value = favorites
+        if value.contains(item.id) { value.remove(item.id) } else { value.insert(item.id) }
+        favorites = value
+    }
+
+    func isInstalled(_ item: TweakStoreItem) -> Bool {
+        let prefix = item.name.replacingOccurrences(of: "/", with: "-") + "-"
+        let files = (try? FileManager.default.contentsOfDirectory(at: FileManager.default.tweaks, includingPropertiesForKeys: nil)) ?? []
+        return files.contains { $0.lastPathComponent.hasPrefix(prefix) }
+    }
+
+    func installedURL(for item: TweakStoreItem) -> URL? {
+        let prefix = item.name.replacingOccurrences(of: "/", with: "-") + "-"
+        let files = (try? FileManager.default.contentsOfDirectory(at: FileManager.default.tweaks, includingPropertiesForKeys: nil)) ?? []
+        return files.first { $0.lastPathComponent.hasPrefix(prefix) }
+    }
     var sources: [URL] {
         get {
             (UserDefaults.standard.stringArray(forKey: sourcesKey) ?? []).compactMap(URL.init(string:))
