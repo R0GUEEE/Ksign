@@ -42,7 +42,10 @@ struct TweakStoreView: View {
                     }
                 }
                 ForEach(store.sources, id: \.absoluteString) { source in
-                    Text(source.absoluteString).font(.caption).lineLimit(1)
+                    VStack(alignment: .leading) {
+                        Text(source.absoluteString).font(.caption).lineLimit(1)
+                        if let health = store.sourceHealth[source] { Text(health).font(.caption2).foregroundColor(.secondary).lineLimit(1) }
+                    }
                         .swipeActions {
                             Button(role: .destructive) { store.removeSource(source) } label: {
                                 Label(.localized("Delete"), systemImage: "trash")
@@ -73,6 +76,9 @@ struct TweakStoreView: View {
     }
 
     @ViewBuilder private func packageRow(_ item: TweakStoreItem) -> some View {
+        NavigationLink {
+            TweakStoreDetailView(item: item, options: $options)
+        } label: {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -107,14 +113,15 @@ struct TweakStoreView: View {
                 }
             }.foregroundColor(.secondary)
         }.padding(.vertical, 3)
+        }
     }
 
     private func download(_ item: TweakStoreItem) async {
         downloading.insert(item.id)
         defer { downloading.remove(item.id) }
         do {
-            let url = try await store.download(item)
-            if !options.injectionFiles.contains(url) { options.injectionFiles.append(url) }
+            let urls = try await store.downloadWithDependencies(item)
+            for url in urls where !options.injectionFiles.contains(url) { options.injectionFiles.append(url) }
         } catch { store.errorMessage = error.localizedDescription }
     }
 }
