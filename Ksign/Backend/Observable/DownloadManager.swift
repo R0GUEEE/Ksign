@@ -19,6 +19,22 @@ class Download: Identifiable, @unchecked Sendable, ObservableObject {
 	@Published var bytesDownloaded: Int64 = 0
 	@Published var totalBytes: Int64 = 0
 	@Published var unpackageProgress: Double = 0.0
+    @Published var bytesPerSecond: Double = 0
+    @Published var isPaused = false
+    @Published var lastError: String?
+    private var lastSampleDate = Date()
+    private var lastSampleBytes: Int64 = 0
+    var estimatedTimeRemaining: TimeInterval? {
+        guard bytesPerSecond > 0, totalBytes > bytesDownloaded else { return nil }
+        return Double(totalBytes - bytesDownloaded) / bytesPerSecond
+    }
+    func updateTransferRate(_ total: Int64) {
+        let now = Date(), elapsed = now.timeIntervalSince(lastSampleDate)
+        guard elapsed >= 0.5 else { return }
+        let instantaneous = Double(max(0, total - lastSampleBytes)) / elapsed
+        bytesPerSecond = bytesPerSecond == 0 ? instantaneous : bytesPerSecond * 0.7 + instantaneous * 0.3
+        lastSampleDate = now; lastSampleBytes = total
+    }
 	
 	var overallProgress: Double {
 		onlyArchiving
@@ -119,18 +135,40 @@ class DownloadManager: NSObject, ObservableObject {
 		return download
 	}
     
-    func resumeDownload(_ download: Download) {
-        if let resumeData = download.resumeData {
-            let task = _session.downloadTask(withResumeData: resumeData)
-            download.task = task
-            task.resume()
-            _updateBackgroundAudioState()
-        } else if let url = download.task?.originalRequest?.url {
-            let task = _session.downloadTask(with: url)
-            download.task = task
-            task.resume()
-            _updateBackgroundAudioState()
+    func pauseDownload(_ download: Download) {
+        guard !download.isPaused, let task = download.task else { return }
+        download.isPaused = true
+        task.cancel { data in
+            DispatchQueue.main.async {
+                download.resumeData = data
+                download.task = nil
+                download.bytesPerSecond = 0
+            }
         }
+    }
+
+    func resumeDownload(_ download: Download) {
+        download.lastError = nil
+        download.isPaused = false
+        let task: URLSessionDownloadTask
+        if let data = download.resumeData {
+            task = _session.downloadTask(withResumeData: data)
+            download.resumeData = nil
+        } else {
+            task = _session.downloadTask(with: download.url)
+        }
+        download.task = task
+        task.resume()
+        _updateBackgroundAudioState()
+    }
+
+    func retryDownload(_ download: Download) {
+        download.resumeData = nil
+        download.progress = 0
+        download.bytesDownloaded = 0
+        download.totalBytes = 0
+        download.bytesPerSecond = 0
+        resumeDownload(download)
     }
     
     func cancelDownload(_ download: Download) {
@@ -248,6 +286,7 @@ extension DownloadManager: URLSessionDownloadDelegate {
 			: 0
             download.bytesDownloaded = totalBytesWritten
             download.totalBytes = totalBytesExpectedToWrite
+            download.updateTransferRate(totalBytesWritten)
             if #available(iOS 26.0, *) {
                 BackgroundTaskManager.shared.updateProgress(for: download.id, progress: download.overallProgress)
             }
@@ -255,19 +294,18 @@ extension DownloadManager: URLSessionDownloadDelegate {
     }
     
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard
-			let _ = error,
-			let downloadTask = task as? URLSessionDownloadTask,
-			let download = getDownloadTask(by: downloadTask)
-		else {
-			return
-		}
-		
-		DispatchQueue.main.async {
-			if let index = self.getDownloadIndex(by: download.id) {
-				self.downloads.remove(at: index)
-			}
-		}
+        guard let error,
+              let downloadTask = task as? URLSessionDownloadTask,
+              let download = getDownloadTask(by: downloadTask) else { return }
+        DispatchQueue.main.async {
+            if download.isPaused { return }
+            download.lastError = error.localizedDescription
+            download.task = nil
+            download.bytesPerSecond = 0
+            if #available(iOS 26.0, *) {
+                BackgroundTaskManager.shared.stopTask(for: download.id, success: false)
+            }
+        }
     }
     
     
