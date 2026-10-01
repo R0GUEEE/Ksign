@@ -15,6 +15,7 @@ struct CertificatesView: View {
 	
 	@State private var _isAddingPresenting = false
 	@State private var _isSelectedInfoPresenting: CertificatePair?
+	@State private var _searchText = ""
 
 	// MARK: Fetch
 	@FetchRequest(
@@ -22,6 +23,22 @@ struct CertificatesView: View {
 		sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)],
 		animation: .snappy
 	) private var certificates: FetchedResults<CertificatePair>
+	
+	// Certificates matching the search text, still carrying their index into
+	// the full `certificates` fetch — that index is what gets persisted as
+	// "feather.selectedCert" and read back by SigningView/BulkSigningView/
+	// SettingsView, so it must never be relative to the filtered list.
+	private var _filteredCertificates: [(index: Int, cert: CertificatePair)] {
+		let all: [(index: Int, cert: CertificatePair)] = certificates.enumerated().map { (index: $0.offset, cert: $0.element) }
+		guard !_searchText.isEmpty else { return all }
+		
+		return all.filter { _, cert in
+			let decoded = Storage.shared.getProvisionFileDecoded(for: cert)
+			return (cert.nickname?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+				(decoded?.Name.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+				(decoded?.AppIDName.localizedCaseInsensitiveContains(_searchText) ?? false)
+		}
+	}
 	
 	//
 	private var _bindingSelectedCert: Binding<Int>?
@@ -36,12 +53,13 @@ struct CertificatesView: View {
 	// MARK: Body
 	var body: some View {
 		NBGrid {
-			ForEach(Array(certificates.enumerated()), id: \.element.uuid) { index, cert in
+			ForEach(_filteredCertificates, id: \.cert.uuid) { index, cert in
 				_cellButton(for: cert, at: index)
 			}
 		}
 		.navigationTitle(.localized("Certificates"))
 		.navigationBarTitleDisplayMode(.inline)
+		.searchable(text: $_searchText, placement: .platform())
         .overlay {
             if certificates.isEmpty {
                 if #available(iOS 17, *) {
@@ -56,6 +74,10 @@ struct CertificatesView: View {
 							Text("Import").bg()
                         }
                     }
+                }
+            } else if _filteredCertificates.isEmpty {
+                if #available(iOS 17, *) {
+                    ContentUnavailableView.search(text: _searchText)
                 }
             }
         }
@@ -154,7 +176,29 @@ extension CertificatesView {
 		} label: {
 			Label(.localized("Get Info"), systemImage: "info.circle")
 		}
+		
+		Button {
+			UIAlertController.showAlertWithTextBox(
+				title: .localized("Rename Certificate"),
+				message: .localized("Leave blank to use the name from the provisioning profile."),
+				textFieldPlaceholder: .localized("Nickname (Optional)"),
+				textFieldText: cert.nickname ?? "",
+				submit: .localized("Rename"),
+				cancel: .localized("Cancel"),
+				onSubmit: { name in
+					Storage.shared.renameCertificate(cert, to: name)
+				}
+			)
+		} label: {
+			Label(.localized("Rename"), systemImage: "pencil")
+		}
+		
+		Button {
+			let files = Storage.shared.exportFiles(for: cert)
+			guard !files.isEmpty else { return }
+			UIActivityViewController.show(activityItems: files)
+		} label: {
+			Label(.localized("Export"), systemImage: "square.and.arrow.up")
+		}
 	}
-	
-
 }

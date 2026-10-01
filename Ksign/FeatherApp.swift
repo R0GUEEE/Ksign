@@ -93,6 +93,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         _copyServerCertificates()
         _addDefaultCertificates()
+        CertificateExpiryManager.rescheduleAll()
 
 #if SERVER
         // fallback just in case xd
