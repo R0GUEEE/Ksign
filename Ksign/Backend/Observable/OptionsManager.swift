@@ -14,8 +14,14 @@ class OptionsManager: ObservableObject {
 	
 	@Published var options: Options
 	private let _key = "signing_options"
+	private let _profilesKey = "signing_profiles"
+	@Published private(set) var profiles: [SigningProfile] = []
 	
 	init() {
+		if let data = UserDefaults.standard.data(forKey: _profilesKey),
+		   let savedProfiles = try? JSONDecoder().decode([SigningProfile].self, from: data) {
+			self.profiles = savedProfiles.sorted { $0.updatedAt > $1.updatedAt }
+		}
 		if let data = UserDefaults.standard.data(forKey: _key),
 		   let savedOptions = try? JSONDecoder().decode(Options.self, from: data) {
 			self.options = savedOptions
@@ -33,11 +39,50 @@ class OptionsManager: ObservableObject {
 		}
 	}
 	
+	func saveProfile(named name: String) {
+		let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmed.isEmpty else { return }
+		let now = Date()
+		if let index = profiles.firstIndex(where: { $0.name.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }) {
+			profiles[index].name = trimmed
+			profiles[index].options = options
+			profiles[index].updatedAt = now
+		} else {
+			profiles.append(SigningProfile(name: trimmed, options: options, updatedAt: now))
+		}
+		profiles.sort { $0.updatedAt > $1.updatedAt }
+		saveProfiles()
+	}
+
+	func applyProfile(_ profile: SigningProfile) {
+		options = profile.options
+		saveOptions()
+	}
+
+	func deleteProfile(_ profile: SigningProfile) {
+		profiles.removeAll { $0.id == profile.id }
+		saveProfiles()
+	}
+
+	private func saveProfiles() {
+		if let encoded = try? JSONEncoder().encode(profiles) {
+			UserDefaults.standard.set(encoded, forKey: _profilesKey)
+			objectWillChange.send()
+		}
+	}
+
 	/// Resets options to default
 	func resetToDefaults() {
 		options = Options.defaultOptions
 		saveOptions()
 	}
+}
+
+struct SigningProfile: Codable, Identifiable, Equatable {
+	var id: UUID = UUID()
+	var name: String
+	var options: Options
+	var updatedAt: Date = Date()
 }
 
 // MARK: - Class Options
