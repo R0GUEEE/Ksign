@@ -17,6 +17,21 @@ struct SourceAppsCellView: View {
     
     var source: ASRepository
     var app: ASRepository.App
+    /// Shows which repository a result came from. Only useful in the
+    /// aggregated "All Repositories" / App Store lists, where the same app
+    /// can appear in several sources; it's redundant in a single-source view.
+    var showsSourceName: Bool = false
+    
+    private var _sourceName: String? {
+        guard
+            showsSourceName,
+            let name = source.name?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !name.isEmpty
+        else {
+            return nil
+        }
+        return name
+    }
     
     var body: some View {
         VStack {
@@ -38,6 +53,18 @@ struct SourceAppsCellView: View {
                     }
                 }
                 DownloadButtonView(app: app)
+            }
+            
+            if let sourceName = _sourceName {
+                HStack(spacing: 4) {
+                    Image(systemName: "globe")
+                        .font(.caption2)
+                    Text(sourceName)
+                        .font(.caption2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 2)
             }
             
             if

@@ -9,9 +9,29 @@ import SwiftUI
 import CoreData
 import NimbleViews
 
+// MARK: - Sort options
+enum LibrarySortOption: String, CaseIterable {
+	case date
+	case name
+	
+	var displayName: String {
+		switch self {
+		case .date:  .localized("Date")
+		case .name:  .localized("Name")
+		}
+	}
+}
+
 // MARK: - View
 struct LibraryView: View {
 	@StateObject var downloadManager = DownloadManager.shared
+	
+	@AppStorage("Feather.librarySortOptionRawValue") private var _sortOptionRawValue: String = LibrarySortOption.date.rawValue
+	@AppStorage("Feather.librarySortAscending") private var _sortAscending: Bool = false
+	
+	private var _sortOption: LibrarySortOption {
+		LibrarySortOption(rawValue: _sortOptionRawValue) ?? .date
+	}
 	
 	@State private var _selectedInfoAppPresenting: AnyApp?
 	@State private var _selectedSigningAppPresenting: AnyApp?
@@ -32,11 +52,29 @@ struct LibraryView: View {
 	
 	@Namespace private var _namespace
 	
-	// horror
+	// The fetch requests below are pinned to date-descending; any other order
+	// is applied here. Defaults reproduce the previous hard-coded behaviour
+	// (newest first).
 	private func filteredAndSortedApps<T>(from apps: FetchedResults<T>) -> [T] where T: NSManagedObject {
-		apps.filter {
+		let filtered = apps.filter {
 			_searchText.isEmpty ||
 			(($0.value(forKey: "name") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false)
+		}
+		
+		return filtered.sorted { lhs, rhs in
+			switch _sortOption {
+			case .date:
+				let lhsDate = lhs.value(forKey: "date") as? Date ?? .distantPast
+				let rhsDate = rhs.value(forKey: "date") as? Date ?? .distantPast
+				return _sortAscending ? lhsDate < rhsDate : lhsDate > rhsDate
+			case .name:
+				let lhsName = lhs.value(forKey: "name") as? String ?? ""
+				let rhsName = rhs.value(forKey: "name") as? String ?? ""
+				let comparison = lhsName.localizedCaseInsensitiveCompare(rhsName)
+				return _sortAscending
+					? comparison == .orderedAscending
+					: comparison == .orderedDescending
+			}
 		}
 	}
 	
@@ -162,6 +200,14 @@ struct LibraryView: View {
 					}
 				} else {
 					NBToolbarMenu(
+						systemImage: "line.3.horizontal.decrease",
+						style: .icon,
+						placement: .topBarTrailing
+					) {
+						_sortActions()
+					}
+					
+					NBToolbarMenu(
 						systemImage: "plus",
 						style: .icon,
 						placement: .topBarTrailing
@@ -260,6 +306,34 @@ extension LibraryView {
         }
         Button(.localized("Import from URL"), systemImage: "globe") {
             _isDownloadingPresenting = true
+        }
+    }
+    
+    @ViewBuilder
+    private func _sortActions() -> some View {
+        Section(.localized("Sort by")) {
+            ForEach(LibrarySortOption.allCases, id: \.displayName) { option in
+                _sortButton(for: option)
+            }
+        }
+    }
+    
+    private func _sortButton(for option: LibrarySortOption) -> some View {
+        Button {
+            if _sortOption == option {
+                _sortAscending.toggle()
+            } else {
+                _sortOptionRawValue = option.rawValue
+                _sortAscending = true
+            }
+        } label: {
+            HStack {
+                Text(option.displayName)
+                Spacer()
+                if _sortOption == option {
+                    Image(systemName: _sortAscending ? "chevron.up" : "chevron.down")
+                }
+            }
         }
     }
 }

@@ -224,8 +224,13 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
         case .date: entry = _groupedAppsByDate[_sortedSectionTitles[indexPath.section]]?[indexPath.row] ?? _sortedApps[indexPath.row]
         }
 
+        let showsSourceName = sources.count > 1
         cell.contentConfiguration = UIHostingConfiguration {
-            SourceAppsCellView(source: entry.source, app: entry.app)
+            SourceAppsCellView(
+                source: entry.source,
+                app: entry.app,
+                showsSourceName: showsSourceName
+            )
         }
         return cell
     }
