@@ -86,7 +86,9 @@ final class SigningHandler: NSObject {
 		}
 		
         try await _removeCodeSignature(for: movedAppPath)
-		try await _removeProvisioning(for: movedAppPath)
+		if _options.removeProvisioning {
+            try await _removeProvisioning(for: movedAppPath)
+        }
 		
         try await _inject(for: movedAppPath, with: _options.injectionFiles, with: _options)
         
@@ -185,6 +187,19 @@ extension SigningHandler {
 		if options.proMotion { infoDictionary.setObject(true, forKey: "CADisableMinimumFrameDurationOnPhone" as NSCopying) }
 		if options.gameMode { infoDictionary.setObject(true, forKey: "GCSupportsGameMode" as NSCopying)}
 		if options.ipadFullscreen { infoDictionary.setObject(true, forKey: "UIRequiresFullScreen" as NSCopying) }
+        if options.hideStatusBar == true { infoDictionary.setObject(true, forKey: "UIStatusBarHidden" as NSCopying) }
+        if options.autoHideHomeIndicator == true { infoDictionary.setObject(true, forKey: "UIViewControllerBasedStatusBarAppearance" as NSCopying) }
+        if options.openDocumentsInPlace == true { infoDictionary.setObject(true, forKey: "LSSupportsOpeningDocumentsInPlace" as NSCopying) }
+        if options.exemptEncryption == true { infoDictionary.setObject(false, forKey: "ITSAppUsesNonExemptEncryption" as NSCopying) }
+        switch options.deviceFamily ?? "Default" {
+        case "iPhone": infoDictionary.setObject([1], forKey: "UIDeviceFamily" as NSCopying)
+        case "iPad": infoDictionary.setObject([2], forKey: "UIDeviceFamily" as NSCopying)
+        case "Universal": infoDictionary.setObject([1, 2], forKey: "UIDeviceFamily" as NSCopying)
+        default: break
+        }
+        if let build = options.appBuildVersion, !build.isEmpty {
+            infoDictionary.setObject(build, forKey: "CFBundleVersion" as NSCopying)
+        }
 		if options.removeSupportedDevices { infoDictionary.removeObject(forKey: "UISupportedDevices") }
 		if options.removeURLScheme { infoDictionary.removeObject(forKey: "CFBundleURLTypes") }
 		if options.experiment_supportLiquidGlass {infoDictionary.removeObject(forKey: "UIDesignRequiresCompatibility") }
