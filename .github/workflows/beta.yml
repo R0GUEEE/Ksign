@@ -5,6 +5,13 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+# The "Update Beta Release" step below publishes the built .ipa with the
+# automatic GITHUB_TOKEN, which needs contents: write. Without this block it
+# inherits the repository default (read-only) and the release step fails with
+# "Resource not accessible by integration" — the build itself still succeeds.
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Beta
