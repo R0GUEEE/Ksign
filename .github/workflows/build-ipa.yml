@@ -1,0 +1,61 @@
+#
+# Build IPA — build only, no release, no webhook.
+#
+# Deliberately separate from beta.yml: that one couples the build to a
+# published "beta" GitHub release and a Discord notification, so it can only
+# ever produce one rolling artefact and its red/green state says as much about
+# the release step as about the code. This workflow does one thing — compile
+# the app and hand you the .ipa — and is manual-only so it does not compete
+# for the (scarce) macOS runner pool with beta.yml on every push to main.
+#
+# The .ipa is unsigned (CODE_SIGNING_ALLOWED=NO, as in the makefile): sign it
+# with your own certificate after downloading.
+#
+
+name: Build IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build IPA
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Read marketing version
+        id: version
+        run: |
+          VERSION=$(grep -m1 'MARKETING_VERSION = ' Ksign.xcodeproj/project.pbxproj \
+            | sed -e 's/.*MARKETING_VERSION = //' -e 's/;//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          [ -n "$VERSION" ] || VERSION="unknown"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Marketing version: $VERSION"
+
+      - name: Build
+        run: make
+
+      - name: Verify the IPA was produced
+        run: |
+          ls -lh packages/Ksign.ipa
+          # A zero-length or unzip-able file means the build silently produced
+          # nothing useful; fail loudly rather than uploading it.
+          unzip -l packages/Ksign.ipa | grep -q 'Payload/Ksign.app' \
+            || { echo "::error::packages/Ksign.ipa has no Payload/Ksign.app"; exit 1; }
+          unzip -l packages/Ksign.ipa | tail -3
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ksign-${{ steps.version.outputs.version }}-${{ github.sha }}
+          path: packages/Ksign.ipa
+          if-no-files-found: error
+          retention-days: 30
