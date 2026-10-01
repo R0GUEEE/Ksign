@@ -19,6 +19,13 @@ struct SigningTweaksView: View {
 	// MARK: Body
 	var body: some View {
 		NBList(.localized("Tweaks")) {
+            Section {
+                NavigationLink {
+                    TweakStoreView(options: $options)
+                } label: {
+                    Label(.localized("Tweak Store"), systemImage: "bag")
+                }
+            }
 			NBSection(.localized("Injection")) {
 				Picker(selection: $options.injectPath) {
 					ForEach(Options.InjectPath.allCases, id: \.rawValue) { path in
