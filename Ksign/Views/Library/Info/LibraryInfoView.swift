@@ -26,6 +26,7 @@ struct LibraryInfoView: View {
 				_certSection(for: app)
 				_bundleSection(for: app)
 				_executableSection(for: app)
+                _diagnosticsSection(for: app)
 				
 				Section {
 					Button(.localized("Open App Files"), systemImage: "folder") {
@@ -95,6 +96,36 @@ extension LibraryInfoView {
 		}
 	}
 	
+    @ViewBuilder
+    private func _diagnosticsSection(for app: AppInfoPresentable) -> some View {
+        if let diagnostics = AppDiagnostics.inspect(app) {
+            NBSection(.localized("Diagnostics")) {
+                LabeledContent(.localized("Bundle Size")) {
+                    Text(ByteCountFormatter.string(fromByteCount: diagnostics.bundleSize, countStyle: .file))
+                }
+                LabeledContent(.localized("Executable Size")) {
+                    Text(ByteCountFormatter.string(fromByteCount: diagnostics.executableSize, countStyle: .file))
+                }
+                LabeledContent(.localized("Frameworks")) { Text(verbatim: "\(diagnostics.frameworks.count)") }
+                LabeledContent(.localized("Dylibs")) { Text(verbatim: "\(diagnostics.dylibs.count)") }
+                LabeledContent(.localized("Extensions")) { Text(verbatim: "\(diagnostics.extensions.count)") }
+                LabeledContent(.localized("URL Schemes")) { Text(verbatim: "\(diagnostics.urlSchemes.count)") }
+                LabeledContent(.localized("Privacy Manifests")) { Text(verbatim: "\(diagnostics.privacyManifestCount)") }
+                LabeledContent(.localized("Provisioning Profile")) {
+                    Text(diagnostics.hasProvisioningProfile ? .localized("Embedded") : .localized("None"))
+                }
+                if !diagnostics.warnings.isEmpty {
+                    DisclosureGroup(.localized("Pre-sign Warnings")) {
+                        ForEach(diagnostics.warnings, id: \.self) { warning in
+                            Label(warning, systemImage: "exclamationmark.triangle")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 	@ViewBuilder
 	private func _infoCell(_ title: String, desc: String) -> some View {
 		LabeledContent(title) {
