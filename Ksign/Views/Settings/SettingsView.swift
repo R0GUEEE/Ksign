@@ -77,6 +77,9 @@ struct SettingsView: View {
 					NavigationLink(destination: ConfigurationView()) {
                         Label(.localized("Signing Options"), systemImage: "gear")
                     }
+                    NavigationLink(destination: SigningProfilesView()) {
+                        Label(.localized("Signing Profiles"), systemImage: "square.stack.3d.up")
+                    }
 					NavigationLink(destination: ArchiveView()) {
                         Label(.localized("Archive & Extraction"), systemImage: "archivebox")
                     }
