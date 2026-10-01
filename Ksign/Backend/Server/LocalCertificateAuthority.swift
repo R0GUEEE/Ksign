@@ -71,14 +71,14 @@ enum LocalCertificateAuthority {
 
 		// MARK: Root CA
 		let caPrivateKey = P256.Signing.PrivateKey()
-		let caKey = Certificate.PrivateKey(caPrivateKey)
+		let caKey = X509.Certificate.PrivateKey(caPrivateKey)
 
 		let caSubject = try DistinguishedName {
 			CommonName("Ksign Local CA")
 			OrganizationName("Ksign")
 		}
 
-		let caExtensions = try Certificate.Extensions {
+		let caExtensions = try X509.Certificate.Extensions {
 			Critical(
 				BasicConstraints.isCertificateAuthority(maxPathLength: 0)
 			)
@@ -88,9 +88,9 @@ enum LocalCertificateAuthority {
 			SubjectKeyIdentifier(hash: caKey.publicKey)
 		}
 
-		let caCertificate = try Certificate(
+		let caCertificate = try X509.Certificate(
 			version: .v3,
-			serialNumber: Certificate.SerialNumber(),
+			serialNumber: X509.Certificate.SerialNumber(),
 			publicKey: caKey.publicKey,
 			notValidBefore: now,
 			notValidAfter: notAfter,
@@ -103,14 +103,14 @@ enum LocalCertificateAuthority {
 
 		// MARK: Leaf (server) certificate, signed by the CA above
 		let leafPrivateKey = P256.Signing.PrivateKey()
-		let leafKey = Certificate.PrivateKey(leafPrivateKey)
+		let leafKey = X509.Certificate.PrivateKey(leafPrivateKey)
 
 		let leafSubject = try DistinguishedName {
 			CommonName(commonName)
 			OrganizationName("Ksign")
 		}
 
-		let leafExtensions = try Certificate.Extensions {
+		let leafExtensions = try X509.Certificate.Extensions {
 			Critical(
 				BasicConstraints.notCertificateAuthority
 			)
@@ -127,9 +127,9 @@ enum LocalCertificateAuthority {
 			AuthorityKeyIdentifier(keyIdentifier: SubjectKeyIdentifier(hash: caKey.publicKey).keyIdentifier)
 		}
 
-		let leafCertificate = try Certificate(
+		let leafCertificate = try X509.Certificate(
 			version: .v3,
-			serialNumber: Certificate.SerialNumber(),
+			serialNumber: X509.Certificate.SerialNumber(),
 			publicKey: leafKey.publicKey,
 			notValidBefore: now,
 			notValidAfter: notAfter,
