@@ -91,13 +91,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         _clean()
         
-        _copyServerCertificates()
+        _bootstrapServerCertificates()
         _addDefaultCertificates()
 
-#if SERVER
-        // fallback just in case xd
-        _downloadSSLCertificates()
-#endif
         return true
     }
     
@@ -154,30 +150,32 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         }
     }
     
-    private func _copyServerCertificates() {
+    private func _bootstrapServerCertificates() {
         let fileManager = FileManager.default
         let serverDirectory = URL.documentsDirectory.appendingPathComponent("App/Server")
         
         try? fileManager.createDirectoryIfNeeded(at: serverDirectory)
         
-        let filesToCopy = ["server.crt", "server.pem", "commonName.txt"]
+        let crtURL = serverDirectory.appendingPathComponent("server.crt")
+        let pemURL = serverDirectory.appendingPathComponent("server.pem")
+        let commonNameURL = serverDirectory.appendingPathComponent("commonName.txt")
         
-        for fileName in filesToCopy {
-            guard let bundleURL = Bundle.main.url(forResource: fileName.components(separatedBy: ".").first!, withExtension: fileName.components(separatedBy: ".").last!) else {
-                print("File \(fileName) not found in app bundle")
-                continue
-            }
-            
-            let destinationURL = serverDirectory.appendingPathComponent(fileName)
-            
-            try? fileManager.removeItem(at: destinationURL)
-            
-            do {
-                try fileManager.copyItem(at: bundleURL, to: destinationURL)
-            } catch {
-                print("Error copying \(fileName): \(error)")
-            }
+        // Already generated on a previous launch — nothing to do.
+        guard
+            !fileManager.fileExists(atPath: crtURL.path) ||
+            !fileManager.fileExists(atPath: pemURL.path) ||
+            !fileManager.fileExists(atPath: commonNameURL.path)
+        else {
+            return
         }
+        
+        #if SERVER
+        do {
+            try FR.generateLocalSSLCertificates()
+        } catch {
+            Logger.misc.error("Failed to generate local SSL certificates: \(error)")
+        }
+        #endif
     }
     
     private func _addDefaultCertificates() {
@@ -229,18 +227,4 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 Logger.misc.error("Failed to list signing-assets: \(error)")
             }
         }
-
-#if SERVER
-    private func _downloadSSLCertificates() {
-        let serverURL = "https://backloop.dev/pack.json"
-        
-        FR.downloadSSLCertificates(from: serverURL) { success in
-            if success {
-                print("SSL certificates downloaded successfully")
-            } else {
-                print("Failed to download SSL certificates")
-            }
-        }
-    }
-#endif
 }

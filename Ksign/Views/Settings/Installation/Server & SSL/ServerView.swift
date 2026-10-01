@@ -18,8 +18,7 @@ struct ServerView: View {
 		.localized("Semi Local")
 	]
 	
-	private let _dataService = NBFetchService()
-	private let _serverPackUrl = "https://backloop.dev/pack.json"
+	@State private var _isGenerating = false
 	
 	var body: some View {
 		Group {
@@ -34,18 +33,19 @@ struct ServerView: View {
 			}
 			
 			Section {
-				Button(.localized("Update SSL Certificates"), systemImage: "arrow.down.doc") {
-					FR.downloadSSLCertificates(from: _serverPackUrl) { success in
-						if !success {
-							DispatchQueue.main.async {
-								UIAlertController.showAlertWithOk(
-									title: .localized("SSL Certificates"),
-									message: .localized("Failed to download, check your internet connection and try again.")
-								)
-							}
-						}
-					}
+				Button {
+					_shareCertificateAuthority()
+				} label: {
+					Label(.localized("Trust Local Certificate"), systemImage: "checkmark.seal")
 				}
+				Button {
+					_regenerateCertificates()
+				} label: {
+					Label(.localized("Regenerate SSL Certificates"), systemImage: "arrow.triangle.2.circlepath")
+				}
+				.disabled(_isGenerating)
+			} footer: {
+				Text(.localized("\"Fully Local\" installs apps over HTTPS using a certificate authority generated on this device. Tap \"Trust Local Certificate\" once, install the profile, then enable full trust for it under Settings > General > About > Certificate Trust Settings."))
 			}
 		}
 		.onChange(of: _serverMethod) { _ in
@@ -54,5 +54,50 @@ struct ServerView: View {
 				message: .localized("These changes require a restart of the app")
 			)
 		}
+	}
+	
+	private func _regenerateCertificates() {
+		_isGenerating = true
+		
+		DispatchQueue.global(qos: .userInitiated).async {
+			do {
+				#if SERVER
+				try FR.generateLocalSSLCertificates()
+				#endif
+				DispatchQueue.main.async {
+					_isGenerating = false
+					UINotificationFeedbackGenerator().notificationOccurred(.success)
+					UIAlertController.showAlertWithOk(
+						title: .localized("SSL Certificates"),
+						message: .localized("New local certificates were generated. If you previously trusted the old certificate authority, tap \"Trust Local Certificate\" again to install the new one.")
+					)
+				}
+			} catch {
+				DispatchQueue.main.async {
+					_isGenerating = false
+					UIAlertController.showAlertWithOk(
+						title: .localized("SSL Certificates"),
+						message: error.localizedDescription
+					)
+				}
+			}
+		}
+	}
+	
+	private func _shareCertificateAuthority() {
+		let caURL = URL.documentsDirectory
+			.appendingPathComponent("App")
+			.appendingPathComponent("Server")
+			.appendingPathComponent("Ksign Local CA.cer")
+		
+		guard FileManager.default.fileExists(atPath: caURL.path) else {
+			UIAlertController.showAlertWithOk(
+				title: .localized("SSL Certificates"),
+				message: .localized("No local certificate authority was found yet, try regenerating the SSL certificates first.")
+			)
+			return
+		}
+		
+		UIActivityViewController.show(activityItems: [caURL])
 	}
 }
