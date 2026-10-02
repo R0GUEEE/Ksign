@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import NimbleViews
 
 struct IPAFileInspectorView: View {
     @State private var isImporting = false

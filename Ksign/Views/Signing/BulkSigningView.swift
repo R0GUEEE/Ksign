@@ -37,6 +37,8 @@ struct BulkSigningView: View {
 	@State private var _isSigning = false
     @State private var _isProgressPresenting = false
     @StateObject private var _coordinator: BulkOperationCoordinator
+	@State private var _selectedPhoto: PhotosPickerItem? = nil
+	@State private var _selectedPhoto: PhotosPickerItem? = nil
 
 	@State private var _editingConfigId: String?
 	
@@ -50,7 +52,7 @@ struct BulkSigningView: View {
 		
 		let defaultOptions = OptionsManager.shared.options
 		__configs = State(initialValue: apps.map { AppSignConfig(app: $0, options: defaultOptions, icon: nil) })
-        _coordinator = StateObject(wrappedValue: BulkOperationCoordinator(apps: apps))
+        __coordinator = StateObject(wrappedValue: BulkOperationCoordinator(apps: apps))
 	}
 
 	var body: some View {
