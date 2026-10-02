@@ -14,6 +14,7 @@ struct CertificatesView: View {
 	@AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
 	
 	@State private var _isAddingPresenting = false
+	@State private var _isCreatingPresenting = false
 	@State private var _isSelectedInfoPresenting: CertificatePair?
 	@State private var _searchText = ""
 
@@ -73,6 +74,11 @@ struct CertificatesView: View {
                         } label: {
 							Text("Import").bg()
                         }
+						Button {
+							_isCreatingPresenting = true
+						} label: {
+							Text(.localized("Create")).bg()
+						}
                     }
                 }
             } else if _filteredCertificates.isEmpty {
@@ -83,12 +89,17 @@ struct CertificatesView: View {
         }
 		.toolbar {
 			if _bindingSelectedCert == nil {
-				NBToolbarButton(
+				NBToolbarMenu(
 					systemImage: "plus",
 					style: .icon,
 					placement: .topBarTrailing
 				) {
-					_isAddingPresenting = true
+					Button(.localized("Import Certificate"), systemImage: "square.and.arrow.down") {
+						_isAddingPresenting = true
+					}
+					Button(.localized("Create Certificate"), systemImage: "signature") {
+						_isCreatingPresenting = true
+					}
 				}
 			}
 			if certificates.count > 0 {
@@ -109,6 +120,9 @@ struct CertificatesView: View {
 		.sheet(isPresented: $_isAddingPresenting) {
 			CertificatesAddView()
 				.presentationDetents([.medium])
+		}
+		.sheet(isPresented: $_isCreatingPresenting) {
+			CertificateCreatorView()
 		}
 	}
 }
