@@ -127,8 +127,6 @@ struct Options: Codable, Equatable {
 	var ipadFullscreen: Bool
 	/// Hide the status bar
 	var hideStatusBar: Bool?
-	/// Prefer the home indicator to auto-hide
-	var autoHideHomeIndicator: Bool?
 	/// Allow opening documents in place
 	var openDocumentsInPlace: Bool?
 	/// Declare that the app does not use restricted encryption
@@ -202,7 +200,6 @@ struct Options: Codable, Equatable {
 		gameMode: false,
 		ipadFullscreen: false,
 		hideStatusBar: false,
-		autoHideHomeIndicator: false,
 		openDocumentsInPlace: false,
 		exemptEncryption: false,
 		deviceFamily: "Default",
