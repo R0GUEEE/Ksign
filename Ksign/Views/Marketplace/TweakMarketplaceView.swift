@@ -58,16 +58,16 @@ final class TweakMarketplaceModel: ObservableObject {
             }
 
             let fm = FileManager.default
-            let root = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("Tweaks", isDirectory: true)
-            try fm.createDirectory(at: root, withIntermediateDirectories: true)
-
-            var fileName = package.downloadURL.lastPathComponent
-            if fileName.isEmpty { fileName = "\(package.id)-\(package.version).deb" }
+            let safeName = package.id.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: "\\", with: "-")
+            let fileName = "\(safeName)-\(package.version).deb"
+            let root = fm.tweaks
+            try fm.createDirectoryIfNeeded(at: root)
             let destination = root.appendingPathComponent(fileName)
+            let rootPath = root.standardizedFileURL.path
+            guard destination.standardizedFileURL.path.hasPrefix(rootPath + "/") else { throw URLError(.badURL) }
             try? fm.removeItem(at: destination)
             try fm.moveItem(at: temporary, to: destination)
-            installedMessage = "\(package.name) downloaded to Files/Tweaks."
+            installedMessage = "\(package.name) downloaded to the Tweaks library."
         } catch {
             errorMessage = error.localizedDescription
         }
