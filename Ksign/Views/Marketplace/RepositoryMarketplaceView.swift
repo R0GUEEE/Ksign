@@ -88,11 +88,12 @@ struct RepositoryMarketplaceView: View {
         .refreshable { await model.refresh() }
         .overlay {
             if !model.isLoading && model.repositories.isEmpty {
-                ContentUnavailableView(
-                    model.catalogURL.isEmpty ? "Add a Catalog" : "No Repositories",
-                    systemImage: "storefront",
-                    description: Text(model.catalogURL.isEmpty ? "Configure a repository catalog to discover sources." : "Pull to refresh or check the catalog URL.")
-                )
+                VStack(spacing: 8) {
+                    Image(systemName: "storefront").font(.title2)
+                    Text(model.catalogURL.isEmpty ? "Add a Catalog" : "No Repositories").font(.headline)
+                    Text(model.catalogURL.isEmpty ? "Configure a repository catalog to discover sources." : "Pull to refresh or check the catalog URL.").font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .toolbar {

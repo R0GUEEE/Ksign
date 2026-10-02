@@ -60,7 +60,7 @@ struct CertificateCreatorView: View {
 						_password = Self._generatePassword()
 					}
 					if !_password.isEmpty {
-						LabeledContent(.localized("Strength"), value: _password.count >= 20 ? .localized("Strong") : .localized("Basic"))
+						LabeledContent(.localized("Strength"), value: _password.count >= 20 ? String.localized("Strong") : String.localized("Basic"))
 					}
 				} footer: {
 					Text(.localized("Protects the generated .p12. Leave it blank to create one without a password."))

@@ -120,11 +120,12 @@ struct TweakMarketplaceView: View {
             .refreshable { await model.refresh() }
             .overlay {
                 if !model.isLoading && model.packages.isEmpty {
-                    ContentUnavailableView(
-                        model.source.isEmpty ? "Add a Marketplace Source" : "No Tweaks",
-                        systemImage: "shippingbox",
-                        description: Text(model.source.isEmpty ? "Add a JSON feed URL from the source button." : "Pull to refresh or check the feed.")
-                    )
+                    VStack(spacing: 8) {
+                        Image(systemName: "shippingbox").font(.title2)
+                        Text(model.source.isEmpty ? "Add a Marketplace Source" : "No Tweaks").font(.headline)
+                        Text(model.source.isEmpty ? "Add a JSON feed URL from the source button." : "Pull to refresh or check the feed.").font(.caption).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .toolbar {
