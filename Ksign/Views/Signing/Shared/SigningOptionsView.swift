@@ -105,6 +105,34 @@ struct SigningOptionsView: View {
             Text(.localized("These options will change apps behaviours"))
         }
         
+        NBSection(.localized("App Metadata")) {
+            _toggle(.localized("Hide Status Bar"),
+                    systemImage: "eye.slash",
+                    isOn: _optionalBinding(\.hideStatusBar)
+            )
+            
+            _toggle(.localized("Open Documents in Place"),
+                    systemImage: "folder.badge.gearshape",
+                    isOn: _optionalBinding(\.openDocumentsInPlace)
+            )
+            
+            _toggle(.localized("No Restricted Encryption"),
+                    systemImage: "lock.open",
+                    isOn: _optionalBinding(\.exemptEncryption)
+            )
+            
+            _picker(.localized("Device Family"),
+                    systemImage: "ipad.and.iphone",
+                    selection: _optionalBinding(\.deviceFamily, fallback: "Default"),
+                    values: Options.deviceFamilyValues,
+                    id: \.description
+            )
+            
+            TextField(.localized("Build Version"), text: _optionalBinding(\.appBuildVersion, fallback: ""))
+        } footer: {
+            Text(.localized("These options are written into the app's Info.plist while signing. Hiding the status bar also switches off view controller based status bar appearance, and Build Version overrides CFBundleVersion (leave it empty to keep the one the app came with)."))
+        }
+        
         NBSection(.localized("Removal")) {
             _toggle(.localized("Remove Supported Devices"),
                     systemImage: "iphone.slash",
@@ -191,6 +219,24 @@ struct SigningOptionsView: View {
 		} footer: {
 			Text(.localized("This option try to disable liquid glass on iOS 26 if the app support it (might not work for all apps)."))
 		}
+    }
+    
+    /// A `Binding<Bool>` for an optional boolean option, where `nil` counts as off.
+    private func _optionalBinding(_ keyPath: WritableKeyPath<Options, Bool?>) -> Binding<Bool> {
+        let source = $options
+        return Binding(
+            get: { source.wrappedValue[keyPath: keyPath] ?? false },
+            set: { source.wrappedValue[keyPath: keyPath] = $0 }
+        )
+    }
+    
+    /// A `Binding<String>` for an optional string option, where an empty field clears it.
+    private func _optionalBinding(_ keyPath: WritableKeyPath<Options, String?>, fallback: String) -> Binding<String> {
+        let source = $options
+        return Binding(
+            get: { source.wrappedValue[keyPath: keyPath] ?? fallback },
+            set: { source.wrappedValue[keyPath: keyPath] = $0.isEmpty ? nil : $0 }
+        )
     }
     
     @ViewBuilder
