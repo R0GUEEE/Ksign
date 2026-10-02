@@ -24,6 +24,7 @@ struct LibraryCellView: View {
 	@Binding var selectedAppDylibsPresenting: AnyApp?
 	@Binding var selectedApps: Set<String>
 	@State private var _showActionSheet = false
+    @State private var _showFavoriteAlert = false
 	
 	private var _isSelected: Bool {
 		selectedApps.contains(app.uuid ?? "")
@@ -147,9 +148,16 @@ extension LibraryCellView {
 	
 	@ViewBuilder
 	private func _contextActions(for app: AppInfoPresentable) -> some View {
-		Button(.localized("Get Info"), systemImage: "info.circle") {
-			selectedInfoAppPresenting = AnyApp(base: app)
-		}
+        Group {
+            Button {
+                Storage.shared.setFavorite(!app.isFavorite, for: app)
+            } label: {
+                Label(app.isFavorite ? .localized("Remove Favorite") : .localized("Add Favorite"), systemImage: app.isFavorite ? "star.slash" : "star")
+            }
+            Button(.localized("Get Info"), systemImage: "info.circle") {
+                selectedInfoAppPresenting = AnyApp(base: app)
+            }
+        }
 	}
 	
 	@ViewBuilder
@@ -214,6 +222,12 @@ extension LibraryCellView {
 			selectedAppDylibsPresenting = AnyApp(base: app)
 		}
 		
+        Button {
+            Storage.shared.setFavorite(!app.isFavorite, for: app)
+        } label: {
+            Label(app.isFavorite ? .localized("Remove Favorite") : .localized("Add Favorite"), systemImage: app.isFavorite ? "star.slash" : "star")
+        }
+
 		Button(.localized("Get Info")) {
 			selectedInfoAppPresenting = AnyApp(base: app)
 		}

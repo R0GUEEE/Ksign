@@ -28,6 +28,7 @@ struct LibraryView: View {
 	
 	@AppStorage("Feather.librarySortOptionRawValue") private var _sortOptionRawValue: String = LibrarySortOption.date.rawValue
 	@AppStorage("Feather.librarySortAscending") private var _sortAscending: Bool = false
+    @AppStorage("Feather.showFavoritesOnly") private var _favoritesOnly = false
 	
 	private var _sortOption: LibrarySortOption {
 		LibrarySortOption(rawValue: _sortOptionRawValue) ?? .date
@@ -57,7 +58,8 @@ struct LibraryView: View {
 	// (newest first).
 	private func filteredAndSortedApps<T>(from apps: FetchedResults<T>) -> [T] where T: NSManagedObject {
 		let filtered = apps.filter {
-			_searchText.isEmpty ||
+            (!_favoritesOnly || (($0.value(forKey: "isFavorite") as? Bool) == true)) &&
+			(_searchText.isEmpty ||
 			(($0.value(forKey: "name") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
             (($0.value(forKey: "userTitle") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
             (($0.value(forKey: "identifier") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||

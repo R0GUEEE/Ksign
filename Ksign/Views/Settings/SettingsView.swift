@@ -89,6 +89,9 @@ struct SettingsView: View {
                     NavigationLink(destination: IPAFileInspectorView()) {
                         Label(.localized("IPA Inspector"), systemImage: "doc.text.magnifyingglass")
                     }
+                    NavigationLink(destination: LibraryMaintenanceView()) {
+                        Label(.localized("Library Maintenance"), systemImage: "wrench.and.screwdriver")
+                    }
 					NavigationLink(destination: ArchiveView()) {
                         Label(.localized("Archive & Extraction"), systemImage: "archivebox")
                     }
