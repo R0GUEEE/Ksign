@@ -17,7 +17,7 @@ struct SigningView: View {
 	@StateObject private var _optionsManager = OptionsManager.shared
 	
 	@State private var _temporaryOptions: Options = OptionsManager.shared.options
-	@State private var _temporaryCertificate: Int
+	@State private var _temporaryCertificateUUID: String
 	@State private var _isAltPickerPresenting = false
 	@State private var _isFilePickerPresenting = false
 	@State private var _isImagePickerPresenting = false
@@ -36,8 +36,7 @@ struct SigningView: View {
 	) private var certificates: FetchedResults<CertificatePair>
 	
 	private func _selectedCert() -> CertificatePair? {
-		guard certificates.indices.contains(_temporaryCertificate) else { return nil }
-		return certificates[_temporaryCertificate]
+        certificates.first { $0.uuid == _temporaryCertificateUUID }
 	}
 	
 	private func _getCertAppID() -> String? {
@@ -57,8 +56,8 @@ struct SigningView: View {
 	init(app: AppInfoPresentable, signAndInstall: Bool = false) {
 		self.app = app
 		self.signAndInstall = signAndInstall
-		let storedCert = UserDefaults.standard.integer(forKey: "feather.selectedCert")
-		__temporaryCertificate = State(initialValue: storedCert)
+		let storedCertUUID = UserDefaults.standard.string(forKey: CertificateSelection.uuidKey) ?? ""
+		__temporaryCertificateUUID = State(initialValue: storedCertUUID)
 	}
 		
 	// MARK: Body
@@ -68,6 +67,7 @@ struct SigningView: View {
 				_customizationOptions(for: app)
 				_cert()
 				_customizationProperties(for: app)
+				_securityWarnings()
 			}
 			.disabled(_isSigning)
 			.safeAreaInset(edge: .bottom) {
@@ -222,7 +222,7 @@ extension SigningView {
 		NBSection(.localized("Signing")) {
 			if let cert = _selectedCert() {
 				NavigationLink {
-					CertificatesView(selectedCert: $_temporaryCertificate)
+					CertificatesView(selectedCertificateUUID: $_temporaryCertificateUUID)
 				} label: {
 					CertificatesCellView(
 						cert: cert
@@ -233,41 +233,48 @@ extension SigningView {
 	}
 	
 	@ViewBuilder
+	private func _securityWarnings() -> some View {
+        let warnings = SigningSafety.warnings(options: _temporaryOptions, certificate: _selectedCert(), app: app)
+        if !warnings.isEmpty {
+            Section {
+                ForEach(warnings) { warning in
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text(warning.title)
+                            Text(warning.detail).font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: warning.severity == .critical ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(warning.severity == .critical ? .red : .orange)
+                    }
+                }
+            } header: { Text(.localized("Security Review")) }
+        }
+    }
+
+	@ViewBuilder
 	private func _customizationProperties(for app: AppInfoPresentable) -> some View {
 		NBSection(.localized("Advanced")) {
 			DisclosureGroup(.localized("Modify")) {
 				NavigationLink(.localized("Existing Dylibs")) {
-					SigningDylibView(
-						app: app,
-						options: $_temporaryOptions.optional()
-					)
+					SigningDylibView(app: app, options: $_temporaryOptions.optional())
 				}
-				
 				NavigationLink(String.localized("Frameworks & PlugIns")) {
-					SigningFrameworksView(
-						app: app,
-						options: $_temporaryOptions.optional()
-					)
+					SigningFrameworksView(app: app, options: $_temporaryOptions.optional())
 				}
 				#if NIGHTLY || DEBUG
 				NavigationLink(String.localized("Entitlements")) {
-					SigningEntitlementsView(
-						bindingValue: $_temporaryOptions.appEntitlementsFile
-					)
+					SigningEntitlementsView(bindingValue: $_temporaryOptions.appEntitlementsFile)
 				}
 				#endif
 				NavigationLink(String.localized("Tweaks")) {
-					SigningTweaksView(
-						options: $_temporaryOptions
-					)
+					SigningTweaksView(options: $_temporaryOptions)
 				}
 			}
-			
 			NavigationLink(String.localized("Properties")) {
-				Form { SigningOptionsView(
-					options: $_temporaryOptions,
-					temporaryOptions: _optionsManager.options
-				)}
+				Form {
+					SigningOptionsView(options: $_temporaryOptions, temporaryOptions: _optionsManager.options)
+				}
 				.navigationTitle(.localized("Properties"))
 			}
 		}

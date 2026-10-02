@@ -10,7 +10,7 @@ import NimbleViews
 
 // MARK: - View
 struct SettingsView: View {
-    @AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
+    @AppStorage(CertificateSelection.uuidKey) private var _selectedCertificateUUID = ""
     @FetchRequest(
         entity: CertificatePair.entity(),
         sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)],
@@ -18,13 +18,7 @@ struct SettingsView: View {
     ) private var _certificates: FetchedResults<CertificatePair>
     
     private var selectedCertificate: CertificatePair? {
-        guard
-            _storedSelectedCert >= 0,
-            _storedSelectedCert < _certificates.count
-        else {
-            return nil
-        }
-        return _certificates[_storedSelectedCert]
+        _certificates.first { $0.uuid == _selectedCertificateUUID }
     }
     
     
@@ -62,6 +56,9 @@ struct SettingsView: View {
                     NavigationLink(destination: CertificatesView()) {
                         Label(.localized("Certificates"), systemImage: "signature")
                     }
+                    NavigationLink(destination: CertificateHealthView()) {
+                        Label(.localized("Certificate Health"), systemImage: "heart.text.square")
+                    }
                  
                 } footer: {
                     Text(.localized("Add and manage certificates used for signing applications."))
@@ -79,6 +76,15 @@ struct SettingsView: View {
                     }
                     NavigationLink(destination: SigningProfilesView()) {
                         Label(.localized("Signing Profiles"), systemImage: "square.stack.3d.up")
+                    }
+                    NavigationLink(destination: BackupRestoreView()) {
+                        Label(.localized("Backup & Restore"), systemImage: "externaldrive.badge.icloud")
+                    }
+                    NavigationLink(destination: IPAFileInspectorView()) {
+                        Label(.localized("IPA Inspector"), systemImage: "doc.text.magnifyingglass")
+                    }
+                    NavigationLink(destination: LibraryMaintenanceView()) {
+                        Label(.localized("Library Maintenance"), systemImage: "wrench.and.screwdriver")
                     }
 					NavigationLink(destination: ArchiveView()) {
                         Label(.localized("Archive & Extraction"), systemImage: "archivebox")

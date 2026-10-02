@@ -28,6 +28,7 @@ struct LibraryView: View {
 	
 	@AppStorage("Feather.librarySortOptionRawValue") private var _sortOptionRawValue: String = LibrarySortOption.date.rawValue
 	@AppStorage("Feather.librarySortAscending") private var _sortAscending: Bool = false
+    @AppStorage("Feather.showFavoritesOnly") private var _favoritesOnly = false
 	
 	private var _sortOption: LibrarySortOption {
 		LibrarySortOption(rawValue: _sortOptionRawValue) ?? .date
@@ -57,8 +58,12 @@ struct LibraryView: View {
 	// (newest first).
 	private func filteredAndSortedApps<T>(from apps: FetchedResults<T>) -> [T] where T: NSManagedObject {
 		let filtered = apps.filter {
-			_searchText.isEmpty ||
-			(($0.value(forKey: "name") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false)
+            (!_favoritesOnly || (($0.value(forKey: "isFavorite") as? Bool) == true)) &&
+			(_searchText.isEmpty ||
+			(($0.value(forKey: "name") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+            (($0.value(forKey: "userTitle") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+            (($0.value(forKey: "identifier") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+            (($0.value(forKey: "userTags") as? [String])?.contains { $0.localizedCaseInsensitiveContains(_searchText) } ?? false))
 		}
 		
 		return filtered.sorted { lhs, rhs in
@@ -68,8 +73,8 @@ struct LibraryView: View {
 				let rhsDate = rhs.value(forKey: "date") as? Date ?? .distantPast
 				return _sortAscending ? lhsDate < rhsDate : lhsDate > rhsDate
 			case .name:
-				let lhsName = lhs.value(forKey: "name") as? String ?? ""
-				let rhsName = rhs.value(forKey: "name") as? String ?? ""
+				let lhsName = (lhs.value(forKey: "userTitle") as? String) ?? (lhs.value(forKey: "name") as? String ?? "")
+				let rhsName = (rhs.value(forKey: "userTitle") as? String) ?? (rhs.value(forKey: "name") as? String ?? "")
 				let comparison = lhsName.localizedCaseInsensitiveCompare(rhsName)
 				return _sortAscending
 					? comparison == .orderedAscending

@@ -28,6 +28,11 @@
         <attribute name="source" optional="YES" attributeType="URI"/>
         <attribute name="uuid" attributeType="String"/>
         <attribute name="version" attributeType="String"/>
+        <attribute name="userTitle" optional="YES" attributeType="String"/>
+        <attribute name="userNotes" optional="YES" attributeType="String"/>
+        <attribute name="userTags" optional="YES" attributeType="Transformable"/>
+        <attribute name="isFavorite" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lastUsedDate" optional="YES" attributeType="Date"/>
     </entity>
     <entity name="Signed" representedClassName="Signed" syncable="YES" codeGenerationType="class">
         <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
@@ -37,6 +42,11 @@
         <attribute name="source" optional="YES" attributeType="URI"/>
         <attribute name="uuid" attributeType="String"/>
         <attribute name="version" attributeType="String"/>
+        <attribute name="userTitle" optional="YES" attributeType="String"/>
+        <attribute name="userNotes" optional="YES" attributeType="String"/>
+        <attribute name="userTags" optional="YES" attributeType="Transformable"/>
+        <attribute name="isFavorite" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lastUsedDate" optional="YES" attributeType="Date"/>
         <relationship name="certificate" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CertificatePair" inverseName="signedApps" inverseEntity="CertificatePair"/>
     </entity>
 </model>

@@ -58,6 +58,9 @@ extension CertificatesInfoView {
 				.foregroundStyle(data.ExpirationDate.expirationInfo().color)
             
             _info(.localized("Revoked"), description: cert.revoked ? "Yes" : "No")
+            if let health = CertificateHealth.make(cert) {
+                _info(.localized("Health"), description: health.status.title)
+            }
             
 			if let ppq = data.PPQCheck {
 				_info("PPQCheck", description: ppq ? "Yes" : "No")
