@@ -234,7 +234,7 @@ struct SigningOptionsView: View {
     private func _optionalBinding(_ keyPath: WritableKeyPath<Options, String?>, fallback: String) -> Binding<String> {
         let source = $options
         return Binding(
-            get: { source.wrappedValue[keyPath: keyPath] ?? defaultValue },
+            get: { source.wrappedValue[keyPath: keyPath] ?? fallback },
             set: { source.wrappedValue[keyPath: keyPath] = $0.isEmpty ? nil : $0 }
         )
     }
