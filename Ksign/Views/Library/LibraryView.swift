@@ -63,7 +63,7 @@ struct LibraryView: View {
 			(($0.value(forKey: "name") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
             (($0.value(forKey: "userTitle") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
             (($0.value(forKey: "identifier") as? String)?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
-            (($0.value(forKey: "userTags") as? [String])?.contains { $0.localizedCaseInsensitiveContains(_searchText) } ?? false)
+            (($0.value(forKey: "userTags") as? [String])?.contains { $0.localizedCaseInsensitiveContains(_searchText) } ?? false))
 		}
 		
 		return filtered.sorted { lhs, rhs in
