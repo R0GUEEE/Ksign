@@ -32,7 +32,10 @@ struct DuplicateAppsView: View {
     var body: some View {
         List {
             if groups.isEmpty {
-                ContentUnavailableView(String(localized: "No Duplicates"), systemImage: "checkmark.circle", description: Text(String(localized: "Every bundle identifier appears only once in the library.")))
+                Text(String(localized: "No Duplicates"))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
             } else {
                 ForEach(groups) { group in
                     Section(group.identifier) {
