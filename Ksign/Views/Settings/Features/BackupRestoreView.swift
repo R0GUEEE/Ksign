@@ -45,7 +45,7 @@ struct BackupRestoreView: View {
             return
         }
         do {
-            let plainURL = try BackupService.makeBackup()
+            let plainURL = try LibraryBackupService.makeArchive()
             if encryptExport {
                 let encrypted = try EncryptedBackupService.encrypt(Data(contentsOf: plainURL), password: password)
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent("Ksign-backup.ksignbackup.enc")
@@ -63,14 +63,14 @@ struct BackupRestoreView: View {
                 let plain = try EncryptedBackupService.decrypt(Data(contentsOf: url), password: password)
                 let temp = FileManager.default.temporaryDirectory.appendingPathComponent("Ksign-restore.ksignbackup")
                 try plain.write(to: temp, options: .atomic)
-                BackupService.restore(from: temp, completion: restoreResult)
+                LibraryBackupService.restoreArchive(from: temp, completion: restoreResult)
             } catch { message = error.localizedDescription }
-        } else { BackupService.restore(from: url, completion: restoreResult) }
+        } else { LibraryBackupService.restoreArchive(from: url, completion: restoreResult) }
     }
 
     private func restoreResult(_ result: Result<Int, Swift.Error>) {
         switch result {
-        case .success(let count): message = "\(count) " + String(localized: "certificates restored")
+        case .success(let count): message = "\(count) " + String(localized: "apps restored")
         case .failure(let error): message = error.localizedDescription
         }
     }
