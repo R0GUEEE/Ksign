@@ -44,6 +44,20 @@ struct SourcesView: View {
 						}
 					}
 					.buttonStyle(.plain)
+
+					NavigationLink {
+						RepositoryMarketplaceView()
+					} label: {
+						HStack(spacing: 9) {
+							Image(systemName: "storefront.fill")
+								.frame(width: 42, height: 42)
+							NBTitleWithSubtitleView(
+								title: .localized("Repository Marketplace"),
+								subtitle: .localized("Discover and add repositories")
+							)
+						}
+					}
+					.buttonStyle(.plain)
 				}
 				
 				NBSection(

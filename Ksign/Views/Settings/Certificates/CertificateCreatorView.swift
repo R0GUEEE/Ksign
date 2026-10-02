@@ -18,7 +18,7 @@ struct CertificateCreatorView: View {
 	@State private var _organization: String = "Ksign"
 	@State private var _validityDays: Int = 365
 	@State private var _keyAlgorithm: SelfSignedKeyAlgorithm = .rsa2048
-	@State private var _password: String = ""
+	@State private var _password: String = ""\n\t@State private var _showAdvanced: Bool = false
 
 	@State private var _isCreating: Bool = false
 	@State private var _errorMessage: String = ""
@@ -55,8 +55,28 @@ struct CertificateCreatorView: View {
 
 				NBSection(.localized("Password")) {
 					SecureField(.localized("Enter Password"), text: $_password)
+					Button(.localized("Generate Strong Password"), systemImage: "key.fill") {
+						_password = Self._generatePassword()
+					}
+					if !_password.isEmpty {
+						LabeledContent(.localized("Strength"), value: _password.count >= 20 ? .localized("Strong") : .localized("Basic"))
+					}
 				} footer: {
 					Text(.localized("Protects the generated .p12. Leave it blank to create one without a password."))
+				}
+
+				NBSection(.localized("Advanced")) {
+					Toggle(.localized("Show Advanced Options"), isOn: $_showAdvanced)
+					if _showAdvanced {
+						Stepper(value: $_validityDays, in: 1...3650) {
+							LabeledContent(.localized("Exact Validity"), value: Self._description(forDays: _validityDays))
+						}
+						LabeledContent(.localized("Certificate Type"), value: .localized("Self-Signed"))
+						LabeledContent(.localized("Private Key"), value: _keyAlgorithm.rawValue)
+						LabeledContent(.localized("Output"), value: ".p12 + .mobileprovision")
+					}
+				} footer: {
+					Text(.localized("Advanced validity is clamped to 1–3650 days. The generated identity is local/self-signed and is not an Apple Developer certificate."))
 				}
 
 				Section {
@@ -105,7 +125,18 @@ extension CertificateCreatorView {
 		}
 	}
 
+	private static func _generatePassword() -> String {
+		let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%")
+		return String((0..<24).compactMap { _ in alphabet.randomElement() })
+	}
+
 	private func _create() {
+		let trimmedName = _commonName.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !trimmedName.isEmpty else {
+			_errorMessage = .localized("Certificate name cannot be empty.")
+			_isErrorPresenting = true
+			return
+		}
 		_isCreating = true
 
 		let request = SelfSignedCertificateRequest(
