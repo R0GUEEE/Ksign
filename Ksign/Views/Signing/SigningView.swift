@@ -66,6 +66,7 @@ struct SigningView: View {
 			Form {
 				_customizationOptions(for: app)
 				_cert()
+				_customizationProperties(for: app)
 				_securityWarnings()
 			}
 			.disabled(_isSigning)
