@@ -67,7 +67,7 @@ struct SigningView: View {
 			Form {
 				_customizationOptions(for: app)
 				_cert()
-				_customizationProperties(for: app)
+				_securityWarnings()
 			}
 			.disabled(_isSigning)
 			.safeAreaInset(edge: .bottom) {
@@ -233,41 +233,48 @@ extension SigningView {
 	}
 	
 	@ViewBuilder
+	private func _securityWarnings() -> some View {
+        let warnings = SigningSafety.warnings(options: _temporaryOptions, certificate: _selectedCert(), app: app)
+        if !warnings.isEmpty {
+            Section {
+                ForEach(warnings) { warning in
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text(warning.title)
+                            Text(warning.detail).font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: warning.severity == .critical ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(warning.severity == .critical ? .red : .orange)
+                    }
+                }
+            } header: { Text(.localized("Security Review")) }
+        }
+    }
+
+	@ViewBuilder
 	private func _customizationProperties(for app: AppInfoPresentable) -> some View {
 		NBSection(.localized("Advanced")) {
 			DisclosureGroup(.localized("Modify")) {
 				NavigationLink(.localized("Existing Dylibs")) {
-					SigningDylibView(
-						app: app,
-						options: $_temporaryOptions.optional()
-					)
+					SigningDylibView(app: app, options: $_temporaryOptions.optional())
 				}
-				
 				NavigationLink(String.localized("Frameworks & PlugIns")) {
-					SigningFrameworksView(
-						app: app,
-						options: $_temporaryOptions.optional()
-					)
+					SigningFrameworksView(app: app, options: $_temporaryOptions.optional())
 				}
 				#if NIGHTLY || DEBUG
 				NavigationLink(String.localized("Entitlements")) {
-					SigningEntitlementsView(
-						bindingValue: $_temporaryOptions.appEntitlementsFile
-					)
+					SigningEntitlementsView(bindingValue: $_temporaryOptions.appEntitlementsFile)
 				}
 				#endif
 				NavigationLink(String.localized("Tweaks")) {
-					SigningTweaksView(
-						options: $_temporaryOptions
-					)
+					SigningTweaksView(options: $_temporaryOptions)
 				}
 			}
-			
 			NavigationLink(String.localized("Properties")) {
-				Form { SigningOptionsView(
-					options: $_temporaryOptions,
-					temporaryOptions: _optionsManager.options
-				)}
+				Form {
+					SigningOptionsView(options: $_temporaryOptions, temporaryOptions: _optionsManager.options)
+				}
 				.navigationTitle(.localized("Properties"))
 			}
 		}

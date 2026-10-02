@@ -27,6 +27,13 @@ struct LibraryInfoView: View {
 				_bundleSection(for: app)
 				_executableSection(for: app)
                 _diagnosticsSection(for: app)
+                if let inspection = IPAInspection.inspect(app) {
+                    NavigationLink {
+                        IPAInspectionView(inspection: inspection)
+                    } label: {
+                        Label(.localized("IPA Inspector"), systemImage: "doc.text.magnifyingglass")
+                    }
+                }
 				
 				Section {
 					Button(.localized("Open App Files"), systemImage: "folder") {
@@ -36,6 +43,13 @@ struct LibraryInfoView: View {
 			}
 			.toolbar {
 				NBToolbarButton(role: .close)
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        AppMetadataEditor(app: app)
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                }
 			}
 		}
     }
@@ -58,6 +72,15 @@ extension LibraryInfoView {
 				_infoCell(.localized("Identifier"), desc: id)
 			}
 			
+			if let userTitle = app.userTitle, !userTitle.isEmpty {
+				_infoCell(.localized("Title"), desc: userTitle)
+			}
+			if !app.userTags.isEmpty {
+				_infoCell(.localized("Tags"), desc: app.userTags.joined(separator: ", "))
+			}
+			if let notes = app.userNotes, !notes.isEmpty {
+				_infoCell(.localized("Notes"), desc: notes)
+			}
 			if let date = app.date {
 				_infoCell(.localized("Date Added"), desc: date.formatted())
 			}

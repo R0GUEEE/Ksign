@@ -10,7 +10,7 @@ import NimbleViews
 import PhotosUI
 
 struct AppSignConfig: Identifiable {
-    var id: String? { app.uuid }
+    var id: String { app.uuid ?? app.identifier ?? UUID().uuidString }
     var app: AppInfoPresentable
     var options: Options
     var icon: UIImage?
@@ -35,7 +35,9 @@ struct BulkSigningView: View {
 	@State private var _isFilePickerPresenting = false
 	@State private var _isImagePickerPresenting = false
 	@State private var _isSigning = false
-	@State private var _selectedPhoto: PhotosPickerItem? = nil
+    @State private var _isProgressPresenting = false
+    @StateObject private var _coordinator: BulkOperationCoordinator
+
 	@State private var _editingConfigId: String?
 	
 	@Environment(\.dismiss) private var dismiss
@@ -48,6 +50,7 @@ struct BulkSigningView: View {
 		
 		let defaultOptions = OptionsManager.shared.options
 		__configs = State(initialValue: apps.map { AppSignConfig(app: $0, options: defaultOptions, icon: nil) })
+        _coordinator = StateObject(wrappedValue: BulkOperationCoordinator(apps: apps))
 	}
 
 	var body: some View {
@@ -117,8 +120,10 @@ struct BulkSigningView: View {
 					}
 				}
 			}
-			.disabled(_isSigning)
-			.animation(.smooth, value: _isSigning)
+            .sheet(isPresented: $_isProgressPresenting) {
+                BulkOperationProgressView(coordinator: _coordinator)
+            }
+
 		}
 	}
 }
@@ -252,24 +257,13 @@ extension BulkSigningView {
 		let generator = UIImpactFeedbackGenerator(style: .light)
 		generator.impactOccurred()
 		_isSigning = true
-
-		
-		for config in _configs {
-			FR.signPackageFile(
-				config.app,
-				using: config.options,
-				icon: config.icon,
-				certificate: _selectedCert()
-			) { [self] error in
-				if let error {
-					UIAlertController.showAlertWithOk(title: "Error", message: error.localizedDescription)
-				}
-				DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-					NotificationCenter.default.post(name: NSNotification.Name("ksign.bulkSigningFinished"), object: nil)
-				}
-				dismiss()
-			}
-		}
+        _isProgressPresenting = true
+        _coordinator.run(sign: { index, completion in
+            let config = _configs[index]
+            FR.signPackageFile(config.app, using: config.options, icon: config.icon, certificate: _selectedCert(), completion: completion)
+        }) {
+            DispatchQueue.main.async { NotificationCenter.default.post(name: NSNotification.Name("ksign.bulkSigningFinished"), object: nil) }
+        }
 
 	}
 }

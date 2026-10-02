@@ -46,7 +46,7 @@ struct LibraryCellView: View {
 			FRAppIconView(app: app, size: 57)
 			
 			NBTitleWithSubtitleView(
-				title: app.name ?? .localized("Unknown"),
+				title: app.userTitle ?? app.name ?? .localized("Unknown"),
 				subtitle: _desc,
 				linelimit: 0
 			)

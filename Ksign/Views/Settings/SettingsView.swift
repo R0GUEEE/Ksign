@@ -62,6 +62,9 @@ struct SettingsView: View {
                     NavigationLink(destination: CertificatesView()) {
                         Label(.localized("Certificates"), systemImage: "signature")
                     }
+                    NavigationLink(destination: CertificateHealthView()) {
+                        Label(.localized("Certificate Health"), systemImage: "heart.text.square")
+                    }
                  
                 } footer: {
                     Text(.localized("Add and manage certificates used for signing applications."))
@@ -79,6 +82,12 @@ struct SettingsView: View {
                     }
                     NavigationLink(destination: SigningProfilesView()) {
                         Label(.localized("Signing Profiles"), systemImage: "square.stack.3d.up")
+                    }
+                    NavigationLink(destination: BackupRestoreView()) {
+                        Label(.localized("Backup & Restore"), systemImage: "externaldrive.badge.icloud")
+                    }
+                    NavigationLink(destination: IPAFileInspectorView()) {
+                        Label(.localized("IPA Inspector"), systemImage: "doc.text.magnifyingglass")
                     }
 					NavigationLink(destination: ArchiveView()) {
                         Label(.localized("Archive & Extraction"), systemImage: "archivebox")

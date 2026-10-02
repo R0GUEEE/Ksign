@@ -71,6 +71,11 @@ class OptionsManager: ObservableObject {
 		}
 	}
 
+	func replaceProfiles(_ newProfiles: [SigningProfile]) {
+		profiles = newProfiles.sorted { $0.updatedAt > $1.updatedAt }
+		saveProfiles()
+	}
+
 	/// Resets options to default
 	func resetToDefaults() {
 		options = Options.defaultOptions
@@ -83,6 +88,22 @@ struct SigningProfile: Codable, Identifiable, Equatable {
 	var name: String
 	var options: Options
 	var updatedAt: Date = Date()
+    var certificateUUID: String? = nil
+    var notes: String? = nil
+
+    enum CodingKeys: String, CodingKey { case id, name, options, updatedAt, certificateUUID, notes }
+    init(name: String, options: Options, updatedAt: Date = Date(), certificateUUID: String? = nil, notes: String? = nil) {
+        self.name = name; self.options = options; self.updatedAt = updatedAt; self.certificateUUID = certificateUUID; self.notes = notes
+    }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try values.decode(String.self, forKey: .name)
+        options = try values.decode(Options.self, forKey: .options)
+        updatedAt = try values.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        certificateUUID = try values.decodeIfPresent(String.self, forKey: .certificateUUID)
+        notes = try values.decodeIfPresent(String.self, forKey: .notes)
+    }
 }
 
 // MARK: - Class Options

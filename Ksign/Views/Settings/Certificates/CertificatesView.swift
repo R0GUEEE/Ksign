@@ -190,6 +190,12 @@ extension CertificatesView {
 		} label: {
 			Label(.localized("Get Info"), systemImage: "info.circle")
 		}
+
+        Button {
+            Storage.shared.revokagedCertificate(for: cert)
+        } label: {
+            Label(.localized("Check Revocation"), systemImage: "checkmark.shield")
+        }
 		
 		Button {
 			UIAlertController.showAlertWithTextBox(
