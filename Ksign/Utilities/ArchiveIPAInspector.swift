@@ -15,6 +15,9 @@ struct ArchiveIPAInspector {
             try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
             if entry.type == .file { _ = try archive.extract(entry, to: destination) }
         }
-        return IPAInspection.inspect(bundleURL: temp.appendingPathComponent(String(appPath)))!
+        guard let inspection = IPAInspection.inspect(bundleURL: temp.appendingPathComponent(String(appPath))) else {
+            throw NSError(domain: "Ksign", code: 2, userInfo: [NSLocalizedDescriptionKey: String(localized: "The app bundle is missing a readable Info.plist")])
+        }
+        return inspection
     }
 }

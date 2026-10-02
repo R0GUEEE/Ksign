@@ -40,16 +40,22 @@ enum BackupService {
                 OptionsManager.shared.options = backup.signingOptions
                 OptionsManager.shared.replaceProfiles(backup.signingProfiles)
                 var count = 0
+                let group = DispatchGroup()
                 for item in backup.certificateFiles {
-                    let dir = FileManager.default.certificates(item.id)
-                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                    let p12URL = dir.appendingPathComponent("p12")
-                    let provisionURL = dir.appendingPathComponent("mobileprovision")
+                    let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("KsignRestore-\(UUID().uuidString)", isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let p12URL = tempDir.appendingPathComponent("certificate.p12")
+                    let provisionURL = tempDir.appendingPathComponent("certificate.mobileprovision")
                     try item.p12.write(to: p12URL, options: .atomic)
                     try item.provisioning.write(to: provisionURL, options: .atomic)
-                    FR.handleCertificateFiles(p12URL: p12URL, provisionURL: provisionURL, p12Password: item.password ?? "", certificateName: item.nickname ?? "") { _ in }
-                    count += 1
+                    group.enter()
+                    FR.handleCertificateFiles(p12URL: p12URL, provisionURL: provisionURL, p12Password: item.password ?? "", certificateName: item.nickname ?? "") { error in
+                        if error == nil { count += 1 }
+                        try? FileManager.default.removeItem(at: tempDir)
+                        group.leave()
+                    }
                 }
+                group.wait()
                 DispatchQueue.main.async { completion(.success(count)) }
             } catch { DispatchQueue.main.async { completion(.failure(error)) } }
         }
