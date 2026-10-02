@@ -1,224 +1,79 @@
-//
-//  CertificatesView.swift
-//  Feather
-//
-//  Created by samara on 15.04.2025.
-//
-
 import SwiftUI
 import NimbleViews
 import UIKit
 
-// MARK: - View
 struct CertificatesView: View {
-	@AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
-	
-	@State private var _isAddingPresenting = false
-	@State private var _isCreatingPresenting = false
-	@State private var _isSelectedInfoPresenting: CertificatePair?
-	@State private var _searchText = ""
+    @AppStorage(CertificateSelection.uuidKey) private var _storedSelectedCertificateUUID = ""
+    @State private var _isAddingPresenting = false
+    @State private var _isCreatingPresenting = false
+    @State private var _isSelectedInfoPresenting: CertificatePair?
+    @State private var _searchText = ""
+    private let _bindingSelectedCertificateUUID: Binding<String>?
 
-	// MARK: Fetch
-	@FetchRequest(
-		entity: CertificatePair.entity(),
-		sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)],
-		animation: .snappy
-	) private var certificates: FetchedResults<CertificatePair>
-	
-	// Certificates matching the search text, still carrying their index into
-	// the full `certificates` fetch — that index is what gets persisted as
-	// "feather.selectedCert" and read back by SigningView/BulkSigningView/
-	// SettingsView, so it must never be relative to the filtered list.
-	private var _filteredCertificates: [(index: Int, cert: CertificatePair)] {
-		let all: [(index: Int, cert: CertificatePair)] = certificates.enumerated().map { (index: $0.offset, cert: $0.element) }
-		guard !_searchText.isEmpty else { return all }
-		
-		return all.filter { _, cert in
-			let decoded = Storage.shared.getProvisionFileDecoded(for: cert)
-			return (cert.nickname?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
-				(decoded?.Name.localizedCaseInsensitiveContains(_searchText) ?? false) ||
-				(decoded?.AppIDName.localizedCaseInsensitiveContains(_searchText) ?? false)
-		}
-	}
-	
-	//
-	private var _bindingSelectedCert: Binding<Int>?
-	private var _selectedCertBinding: Binding<Int> {
-		_bindingSelectedCert ?? $_storedSelectedCert
-	}
-	
-	init(selectedCert: Binding<Int>? = nil) {
-		self._bindingSelectedCert = selectedCert
-	}
-	
-	// MARK: Body
-	var body: some View {
-		NBGrid {
-			ForEach(_filteredCertificates, id: \.cert.uuid) { index, cert in
-				_cellButton(for: cert, at: index)
-			}
-		}
-		.navigationTitle(.localized("Certificates"))
-		.navigationBarTitleDisplayMode(.inline)
-		.searchable(text: $_searchText, placement: .platform())
-        .overlay {
-            if certificates.isEmpty {
-                if #available(iOS 17, *) {
-                    ContentUnavailableView {
-                        Label(.localized("No Certificates"), systemImage: "questionmark.folder.fill")
-                    } description: {
-                        Text(.localized("Get started signing by importing your first certificate."))
-                    } actions: {
-                        Button {
-                            _isAddingPresenting = true
-                        } label: {
-							Text("Import").bg()
-                        }
-						Button {
-							_isCreatingPresenting = true
-						} label: {
-							Text(.localized("Create")).bg()
-						}
-                    }
-                }
-            } else if _filteredCertificates.isEmpty {
-                if #available(iOS 17, *) {
-                    ContentUnavailableView.search(text: _searchText)
-                }
-            }
-        }
-		.toolbar {
-			if _bindingSelectedCert == nil {
-				NBToolbarMenu(
-					systemImage: "plus",
-					style: .icon,
-					placement: .topBarTrailing
-				) {
-					Button(.localized("Import Certificate"), systemImage: "square.and.arrow.down") {
-						_isAddingPresenting = true
-					}
-					Button(.localized("Create Certificate"), systemImage: "signature") {
-						_isCreatingPresenting = true
-					}
-				}
-			}
-			if certificates.count > 0 {
-			NBToolbarButton(
-				systemImage: "arrow.counterclockwise",
-				style: .icon,
-				placement: .topBarTrailing
-				) {
-					for cert in certificates {
-						Storage.shared.revokagedCertificate(for: cert)
-					}
-				}
-			}
-		}
-		.sheet(item: $_isSelectedInfoPresenting) { cert in
-			CertificatesInfoView(cert: cert)
-		}
-		.sheet(isPresented: $_isAddingPresenting) {
-			CertificatesAddView()
-				.presentationDetents([.medium])
-		}
-		.sheet(isPresented: $_isCreatingPresenting) {
-			CertificateCreatorView()
-		}
-	}
-}
+    @FetchRequest(entity: CertificatePair.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)], animation: .snappy)
+    private var certificates: FetchedResults<CertificatePair>
 
-extension CertificatesView {
-	@ViewBuilder
-	private func _cellButton(for cert: CertificatePair, at index: Int) -> some View {
-		Button {
-			_selectedCertBinding.wrappedValue = index
-		} label: {
-			CertificatesCellView(
-				cert: cert
-			)
-			.padding()
-			.background(
-				RoundedRectangle(cornerRadius: _cornerRadius)
-					.fill(Color(uiColor: .quaternarySystemFill))
-			)
-			.overlay(
-				RoundedRectangle(cornerRadius: _cornerRadius)
-					.strokeBorder(
-						_selectedCertBinding.wrappedValue == index ? Color.accentColor : Color.clear,
-						lineWidth: 2
-					)
-			)
-			.contextMenu {
-				_contextActions(for: cert)
-				Divider()
-				_actions(for: cert)
-			}
-			.animation(.smooth, value: _selectedCertBinding.wrappedValue)
-		}
-		.buttonStyle(.plain)
-	}
-    
-    private var _cornerRadius: CGFloat {
-        if #available(iOS 26.0, *) {
-            return 28.0
-        } else {
-            return 17.0
+    private var selectedUUID: Binding<String> { _bindingSelectedCertificateUUID ?? $_storedSelectedCertificateUUID }
+    private var filteredCertificates: [CertificatePair] {
+        guard !_searchText.isEmpty else { return Array(certificates) }
+        return certificates.filter { cert in
+            let decoded = Storage.shared.getProvisionFileDecoded(for: cert)
+            return (cert.nickname?.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+                (decoded?.Name.localizedCaseInsensitiveContains(_searchText) ?? false) ||
+                (decoded?.AppIDName.localizedCaseInsensitiveContains(_searchText) ?? false)
         }
     }
-    
-	@ViewBuilder
-	private func _actions(for cert: CertificatePair) -> some View {
-		Button(role: .destructive) {
-			if certificates.count == 1 {
-                UIAlertController.showAlertWithOk(
-                    title: .localized("You don't want to do this!"),
-                    message: .localized("You don't want to delete your only certificate, right >.<?"),
-                    isCancel: true
-                )
-            } else {
-                Storage.shared.deleteCertificate(for: cert)
-            }
-		} label: {
-			Label(.localized("Delete"), systemImage: "trash")
-		}
-	}
-	
-	@ViewBuilder
-	private func _contextActions(for cert: CertificatePair) -> some View {
-		Button {
-			_isSelectedInfoPresenting = cert
-		} label: {
-			Label(.localized("Get Info"), systemImage: "info.circle")
-		}
 
-        Button {
-            Storage.shared.revokagedCertificate(for: cert)
-        } label: {
-            Label(.localized("Check Revocation"), systemImage: "checkmark.shield")
+    init(selectedCertificateUUID: Binding<String>? = nil) {
+        _bindingSelectedCertificateUUID = selectedCertificateUUID
+    }
+
+    var body: some View {
+        NBGrid {
+            ForEach(filteredCertificates, id: \.uuid) { cert in
+                Button {
+                    if let uuid = cert.uuid {
+                        selectedUUID.wrappedValue = uuid
+                        CertificateSelection.set(cert)
+                    }
+                } label: {
+                    CertificatesCellView(cert: cert)
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 17).fill(Color(uiColor: .quaternarySystemFill)))
+                        .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(selectedUUID.wrappedValue == cert.uuid ? Color.accentColor : .clear, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button { _isSelectedInfoPresenting = cert } label: { Label(.localized("Get Info"), systemImage: "info.circle") }
+                    Button { Storage.shared.revokagedCertificate(for: cert) } label: { Label(.localized("Check Revocation"), systemImage: "checkmark.shield") }
+                    Button { Storage.shared.renameCertificate(cert, to: cert.nickname) } label: { Label(.localized("Rename"), systemImage: "pencil") }
+                    Button(role: .destructive) { Storage.shared.deleteCertificate(for: cert) } label: { Label(.localized("Delete"), systemImage: "trash") }
+                }
+            }
         }
-		
-		Button {
-			UIAlertController.showAlertWithTextBox(
-				title: .localized("Rename Certificate"),
-				message: .localized("Leave blank to use the name from the provisioning profile."),
-				textFieldPlaceholder: .localized("Nickname (Optional)"),
-				textFieldText: cert.nickname ?? "",
-				submit: .localized("Rename"),
-				cancel: .localized("Cancel"),
-				onSubmit: { name in
-					Storage.shared.renameCertificate(cert, to: name)
-				}
-			)
-		} label: {
-			Label(.localized("Rename"), systemImage: "pencil")
-		}
-		
-		Button {
-			let files = Storage.shared.exportFiles(for: cert)
-			guard !files.isEmpty else { return }
-			UIActivityViewController.show(activityItems: files)
-		} label: {
-			Label(.localized("Export"), systemImage: "square.and.arrow.up")
-		}
-	}
+        .navigationTitle(.localized("Certificates"))
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $_searchText, placement: .platform())
+        .toolbar {
+            if _bindingSelectedCertificateUUID == nil {
+                NBToolbarMenu(systemImage: "plus", style: .icon, placement: .topBarTrailing) {
+                    Button(.localized("Import Certificate"), systemImage: "square.and.arrow.down") { _isAddingPresenting = true }
+                    Button(.localized("Create Certificate"), systemImage: "signature") { _isCreatingPresenting = true }
+                }
+            }
+            if !certificates.isEmpty {
+                NBToolbarButton(systemImage: "arrow.counterclockwise", style: .icon, placement: .topBarTrailing) {
+                    certificates.forEach { Storage.shared.revokagedCertificate(for: $0) }
+                }
+            }
+        }
+        .sheet(item: $_isSelectedInfoPresenting) { CertificatesInfoView(cert: $0) }
+        .sheet(isPresented: $_isAddingPresenting) { CertificatesAddView().presentationDetents([.medium]) }
+        .sheet(isPresented: $_isCreatingPresenting) { CertificateCreatorView() }
+        .onAppear {
+            if selectedUUID.wrappedValue.isEmpty {
+                selectedUUID.wrappedValue = CertificateSelection.migrateLegacySelection(from: Array(certificates)) ?? ""
+            }
+        }
+    }
 }

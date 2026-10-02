@@ -58,12 +58,11 @@ struct FeatherApp: App {
 			}
 		} else {
 			if url.pathExtension == "ipa" || url.pathExtension == "tipa" {
-				if FileManager.default.isFileFromFileProvider(at: url) {
-					guard url.startAccessingSecurityScopedResource() else { return }
-					FR.handlePackageFile(url) { _ in }
-				} else {
-					FR.handlePackageFile(url) { _ in }
-				}
+                let isScoped = url.startAccessingSecurityScopedResource()
+                guard isScoped else { return }
+                FR.handlePackageFile(url) { _ in
+                    url.stopAccessingSecurityScopedResource()
+                }
 				
 				return
 			}

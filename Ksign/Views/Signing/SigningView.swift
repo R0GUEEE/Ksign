@@ -17,7 +17,7 @@ struct SigningView: View {
 	@StateObject private var _optionsManager = OptionsManager.shared
 	
 	@State private var _temporaryOptions: Options = OptionsManager.shared.options
-	@State private var _temporaryCertificate: Int
+	@State private var _temporaryCertificateUUID: String
 	@State private var _isAltPickerPresenting = false
 	@State private var _isFilePickerPresenting = false
 	@State private var _isImagePickerPresenting = false
@@ -36,8 +36,7 @@ struct SigningView: View {
 	) private var certificates: FetchedResults<CertificatePair>
 	
 	private func _selectedCert() -> CertificatePair? {
-		guard certificates.indices.contains(_temporaryCertificate) else { return nil }
-		return certificates[_temporaryCertificate]
+        certificates.first { $0.uuid == _temporaryCertificateUUID }
 	}
 	
 	private func _getCertAppID() -> String? {
@@ -57,8 +56,8 @@ struct SigningView: View {
 	init(app: AppInfoPresentable, signAndInstall: Bool = false) {
 		self.app = app
 		self.signAndInstall = signAndInstall
-		let storedCert = UserDefaults.standard.integer(forKey: "feather.selectedCert")
-		__temporaryCertificate = State(initialValue: storedCert)
+		let storedCertUUID = UserDefaults.standard.string(forKey: CertificateSelection.uuidKey) ?? ""
+		__temporaryCertificateUUID = State(initialValue: storedCertUUID)
 	}
 		
 	// MARK: Body
@@ -222,7 +221,7 @@ extension SigningView {
 		NBSection(.localized("Signing")) {
 			if let cert = _selectedCert() {
 				NavigationLink {
-					CertificatesView(selectedCert: $_temporaryCertificate)
+					CertificatesView(selectedCertificateUUID: $_temporaryCertificateUUID)
 				} label: {
 					CertificatesCellView(
 						cert: cert

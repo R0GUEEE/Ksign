@@ -10,7 +10,7 @@ import NimbleViews
 
 // MARK: - View
 struct SettingsView: View {
-    @AppStorage("feather.selectedCert") private var _storedSelectedCert: Int = 0
+    @AppStorage(CertificateSelection.uuidKey) private var _selectedCertificateUUID = ""
     @FetchRequest(
         entity: CertificatePair.entity(),
         sortDescriptors: [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)],
@@ -18,13 +18,7 @@ struct SettingsView: View {
     ) private var _certificates: FetchedResults<CertificatePair>
     
     private var selectedCertificate: CertificatePair? {
-        guard
-            _storedSelectedCert >= 0,
-            _storedSelectedCert < _certificates.count
-        else {
-            return nil
-        }
-        return _certificates[_storedSelectedCert]
+        _certificates.first { $0.uuid == _selectedCertificateUUID }
     }
     
     

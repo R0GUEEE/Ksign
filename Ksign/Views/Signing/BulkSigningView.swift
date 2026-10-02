@@ -24,13 +24,12 @@ struct BulkSigningView: View {
 	) private var certificates: FetchedResults<CertificatePair>
 	
 	private func _selectedCert() -> CertificatePair? {
-		guard certificates.indices.contains(_temporaryCertificate) else { return nil }
-		return certificates[_temporaryCertificate]
+        certificates.first { $0.uuid == _temporaryCertificateUUID }
 	}
 	
 	@StateObject private var _optionsManager = OptionsManager.shared
 	@State private var _configs: [AppSignConfig]
-	@State private var _temporaryCertificate: Int
+	@State private var _temporaryCertificateUUID: String
 	@State private var _isAltPickerPresenting = false
 	@State private var _isFilePickerPresenting = false
 	@State private var _isImagePickerPresenting = false
@@ -46,8 +45,8 @@ struct BulkSigningView: View {
 
 	init(apps: [AppInfoPresentable]) {
 		self.apps = apps
-		let storedCert = UserDefaults.standard.integer(forKey: "feather.selectedCert")
-		__temporaryCertificate = State(initialValue: storedCert)
+		let storedCertUUID = UserDefaults.standard.string(forKey: CertificateSelection.uuidKey) ?? ""
+		__temporaryCertificateUUID = State(initialValue: storedCertUUID)
 		
 		let defaultOptions = OptionsManager.shared.options
 		__configs = State(initialValue: apps.map { AppSignConfig(app: $0, options: defaultOptions, icon: nil) })
@@ -122,7 +121,10 @@ struct BulkSigningView: View {
 				}
 			}
             .sheet(isPresented: $_isProgressPresenting) {
-                BulkOperationProgressView(coordinator: _coordinator)
+                BulkOperationProgressView(coordinator: _coordinator, retry: { _coordinator.retryFailed(sign: { index, completion in
+                    let config = _configs[index]
+                    FR.signPackageFile(config.app, using: config.options, icon: config.icon, certificate: _selectedCert(), completion: completion)
+                }) { } })
             }
 
 		}
@@ -184,7 +186,7 @@ extension BulkSigningView {
 		NBSection(.localized("Signing")) {
 			if let cert = _selectedCert() {
 				NavigationLink {
-					CertificatesView(selectedCert: $_temporaryCertificate)
+					CertificatesView(selectedCertificateUUID: $_temporaryCertificateUUID)
 				} label: {
 					CertificatesCellView(
 						cert: cert
