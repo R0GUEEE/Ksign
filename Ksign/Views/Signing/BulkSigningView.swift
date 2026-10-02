@@ -38,7 +38,6 @@ struct BulkSigningView: View {
     @State private var _isProgressPresenting = false
     @StateObject private var _coordinator: BulkOperationCoordinator
 	@State private var _selectedPhoto: PhotosPickerItem? = nil
-	@State private var _selectedPhoto: PhotosPickerItem? = nil
 
 	@State private var _editingConfigId: String?
 	
