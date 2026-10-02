@@ -109,6 +109,14 @@ enum MachOArchitectureReader {
         return [name(for: cpu)]
     }
     private static func name(for cpu: UInt32) -> String {
-        switch cpu & 0x00ffffff { case 7: return "i386"; case 12: return "arm"; case 0x100000c: return "arm64"; case 0x1000007: return "x86_64"; default: return String(cpu, radix: 16, uppercase: true) }
+        let base = cpu & 0x00ffffff
+        let is64 = (cpu & 0x01000000) != 0
+        switch (base, is64) {
+        case (7, false): return "i386"
+        case (7, true): return "x86_64"
+        case (12, false): return "arm"
+        case (12, true): return "arm64"
+        default: return String(cpu, radix: 16, uppercase: true)
+        }
     }
 }

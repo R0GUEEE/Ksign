@@ -19,7 +19,7 @@ struct CertificateHealth: Identifiable {
         let days = Calendar.current.dateComponents([.day], from: Date(), to: data.ExpirationDate).day ?? 0
         let status: Status = cert.revoked == true ? .revoked : (data.ExpirationDate < Date() ? .expired : (days <= 14 ? .expiring : .valid))
         return CertificateHealth(id: uuid, name: cert.nickname ?? data.Name, expiration: data.ExpirationDate,
-            revoked: cert.revoked, teamID: data.TeamIdentifier.first ?? String(localized: "Unknown"), appIDName: data.AppIDName, status: status)
+            revoked: cert.revoked == true, teamID: data.TeamIdentifier.first ?? String(localized: "Unknown"), appIDName: data.AppIDName, status: status)
     }
 }
 
