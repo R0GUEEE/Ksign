@@ -18,7 +18,8 @@ struct CertificateCreatorView: View {
 	@State private var _organization: String = "Ksign"
 	@State private var _validityDays: Int = 365
 	@State private var _keyAlgorithm: SelfSignedKeyAlgorithm = .rsa2048
-	@State private var _password: String = ""\n\t@State private var _showAdvanced: Bool = false
+	@State private var _password: String = ""
+	@State private var _showAdvanced: Bool = false
 
 	@State private var _isCreating: Bool = false
 	@State private var _errorMessage: String = ""
