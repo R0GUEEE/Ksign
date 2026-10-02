@@ -14,6 +14,11 @@ let package = Package(
 		.library(name: "NimbleJSON", targets: ["NimbleJSON"]),
 		.library(name: "NimbleViews", targets: ["NimbleViews"]),
 	],
+	dependencies: [
+		// Same pin the project already resolves for zsign; NimbleExtensions is
+		// the only place that may import it (see OpenSSLPackaging.swift).
+		.package(url: "https://github.com/krzyzanowskim/OpenSSL", from: "3.3.3001")
+	],
 	targets: [
 		.target(
 			name: "NimbleViews",
@@ -21,7 +26,9 @@ let package = Package(
 		),
 		.target(
 			name: "NimbleExtensions",
-			dependencies: []
+			dependencies: [
+				.product(name: "OpenSSL", package: "OpenSSL")
+			]
 		),
 		.target(name: "NimbleJSON",
 			dependencies: []

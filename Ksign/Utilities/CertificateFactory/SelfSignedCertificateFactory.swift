@@ -25,8 +25,8 @@ import Foundation
 import Crypto
 import X509
 import SwiftASN1
-import OpenSSL
 import Security
+import NimbleExtensions
 
 // MARK: - Request
 
@@ -37,7 +37,7 @@ enum SelfSignedKeyAlgorithm: String, CaseIterable, Identifiable {
 	var id: String { rawValue }
 
 	/// The signature algorithm the certificate is signed with.
-	var signatureAlgorithm: Certificate.SignatureAlgorithm {
+	var signatureAlgorithm: X509.Certificate.SignatureAlgorithm {
 		self == .rsa2048 ? .sha256WithRSAEncryption : .ecdsaWithSHA256
 	}
 
@@ -111,7 +111,7 @@ enum SelfSignedCertificateFactory {
 			OrganizationName(organization)
 		}
 
-		let extensions = try Certificate.Extensions {
+		let extensions = try X509.Certificate.Extensions {
 			Critical(
 				BasicConstraints.notCertificateAuthority
 			)
@@ -125,9 +125,9 @@ enum SelfSignedCertificateFactory {
 			SubjectKeyIdentifier(hash: key.certificateKey.publicKey)
 		}
 
-		let certificate = try Certificate(
+		let certificate = try X509.Certificate(
 			version: .v3,
-			serialNumber: Certificate.SerialNumber(),
+			serialNumber: X509.Certificate.SerialNumber(),
 			publicKey: key.certificateKey.publicKey,
 			notValidBefore: now.addingTimeInterval(-60),
 			notValidAfter: expiration,
@@ -173,7 +173,7 @@ enum SelfSignedCertificateFactory {
 	// MARK: - Key generation
 
 	private struct GeneratedKey {
-		var certificateKey: Certificate.PrivateKey
+		var certificateKey: X509.Certificate.PrivateKey
 		/// PKCS#8 `PrivateKeyInfo`, what OpenSSL and every other tool expects.
 		var pkcs8: [UInt8]
 	}
@@ -183,7 +183,7 @@ enum SelfSignedCertificateFactory {
 		case .ecP256:
 			let key = P256.Signing.PrivateKey()
 			return GeneratedKey(
-				certificateKey: Certificate.PrivateKey(key),
+				certificateKey: X509.Certificate.PrivateKey(key),
 				pkcs8: Array(key.derRepresentation)
 			)
 
@@ -198,9 +198,9 @@ enum SelfSignedCertificateFactory {
 				throw SelfSignedCertificateError.keyGenerationFailed("Security framework returned no key")
 			}
 
-			let certificateKey: Certificate.PrivateKey
+			let certificateKey: X509.Certificate.PrivateKey
 			do {
-				certificateKey = try Certificate.PrivateKey(secKey)
+				certificateKey = try X509.Certificate.PrivateKey(secKey)
 			} catch {
 				throw SelfSignedCertificateError.keyGenerationFailed(error.localizedDescription)
 			}
@@ -291,8 +291,10 @@ enum SelfSignedCertificateFactory {
 		]
 	}
 
-	// MARK: - OpenSSL packaging
+	// MARK: - Packaging
 
+	/// Packaging runs in NimbleExtensions, which is the one module that can talk
+	/// to OpenSSL — see the note at the top of `OpenSSLPackaging`.
 	private static func _package(
 		certificateDER: [UInt8],
 		privateKeyDER: [UInt8],
@@ -308,84 +310,27 @@ enum SelfSignedCertificateFactory {
 			throw SelfSignedCertificateError.provisionFailed("the profile could not be serialised")
 		}
 
-		return try certificateDER.withUnsafeBufferPointer { certificateBuffer -> (p12: Data, provision: Data) in
-			var certificatePointer = certificateBuffer.baseAddress
-			guard let certificate = d2i_X509(nil, &certificatePointer, numericCast(certificateBuffer.count)) else {
-				throw SelfSignedCertificateError.certificateFailed
-			}
-			defer { X509_free(certificate) }
-
-			return try privateKeyDER.withUnsafeBufferPointer { keyBuffer -> (p12: Data, provision: Data) in
-				var keyPointer = keyBuffer.baseAddress
-				guard let pkey = d2i_AutoPrivateKey(nil, &keyPointer, numericCast(keyBuffer.count)) else {
-					throw SelfSignedCertificateError.keyExportFailed
-				}
-				defer { EVP_PKEY_free(pkey) }
-
-				// MARK: PKCS#12
-				let p12 = try password.withCString { passphrase in
-					try name.withCString { label in
-						guard let container = PKCS12_create(passphrase, label, pkey, certificate, nil, 0, 0, 2048, 2048, 0) else {
-							throw SelfSignedCertificateError.pkcs12Failed("OpenSSL refused to create the container")
-						}
-						defer { PKCS12_free(container) }
-
-						guard let bio = BIO_new(BIO_s_mem()) else {
-							throw SelfSignedCertificateError.pkcs12Failed("no memory BIO")
-						}
-						defer { BIO_free(bio) }
-
-						guard i2d_PKCS12_bio(bio, container) == 1 else {
-							throw SelfSignedCertificateError.pkcs12Failed("OpenSSL refused to encode the container")
-						}
-
-						var output = Data()
-						var chunk = [UInt8](repeating: 0, count: 4096)
-						while true {
-							let read = BIO_read(bio, &chunk, numericCast(chunk.count))
-							if read <= 0 { break }
-							output.append(contentsOf: chunk[0 ..< Int(read)])
-						}
-						return output
-					}
-				}
-
-				// MARK: Provisioning profile (signed CMS, same container real
-				// profiles use; zsign only ever reads the content out of it)
-				let provision = try plist.withUnsafeBytes { rawBuffer in
-					guard let base = rawBuffer.baseAddress else {
-						throw SelfSignedCertificateError.provisionFailed("empty profile")
-					}
-					guard let data = BIO_new_mem_buf(base, numericCast(rawBuffer.count)) else {
-						throw SelfSignedCertificateError.provisionFailed("no memory BIO")
-					}
-					defer { BIO_free(data) }
-
-					guard let cms = CMS_sign(certificate, pkey, nil, data, numericCast(CMS_BINARY)) else {
-						throw SelfSignedCertificateError.provisionFailed("OpenSSL refused to sign the profile")
-					}
-					defer { CMS_ContentInfo_free(cms) }
-
-					guard let bio = BIO_new(BIO_s_mem()) else {
-						throw SelfSignedCertificateError.provisionFailed("no memory BIO")
-					}
-					defer { BIO_free(bio) }
-
-					guard i2d_CMS_bio(bio, cms) == 1 else {
-						throw SelfSignedCertificateError.provisionFailed("OpenSSL refused to encode the profile")
-					}
-
-					var output = Data()
-					var chunk = [UInt8](repeating: 0, count: 4096)
-					while true {
-						let read = BIO_read(bio, &chunk, numericCast(chunk.count))
-						if read <= 0 { break }
-						output.append(contentsOf: chunk[0 ..< Int(read)])
-					}
-					return output
-				}
-
-				return (p12: p12, provision: provision)
+		do {
+			let p12 = try OpenSSLPackaging.pkcs12(
+				certificateDER: certificateDER,
+				privateKeyDER: privateKeyDER,
+				password: password,
+				name: name
+			)
+			let provision = try OpenSSLPackaging.signedCMS(
+				content: plist,
+				certificateDER: certificateDER,
+				privateKeyDER: privateKeyDER
+			)
+			return (p12: p12, provision: provision)
+		} catch let error as OpenSSLPackagingError {
+			switch error {
+			case .pkcs12Failed(let reason):
+				throw SelfSignedCertificateError.pkcs12Failed(reason)
+			case .cmsFailed(let reason):
+				throw SelfSignedCertificateError.provisionFailed(reason)
+			case .invalidCertificate, .invalidPrivateKey:
+				throw SelfSignedCertificateError.keyExportFailed
 			}
 		}
 	}
