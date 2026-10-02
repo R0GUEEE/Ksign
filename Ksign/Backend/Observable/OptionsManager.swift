@@ -125,6 +125,18 @@ struct Options: Codable, Equatable {
 	var gameMode: Bool
 	/// If app should use fullscreen (iPad mainly)
 	var ipadFullscreen: Bool
+	/// Hide the status bar
+	var hideStatusBar: Bool?
+	/// Prefer the home indicator to auto-hide
+	var autoHideHomeIndicator: Bool?
+	/// Allow opening documents in place
+	var openDocumentsInPlace: Bool?
+	/// Declare that the app does not use restricted encryption
+	var exemptEncryption: Bool?
+	/// Force phone-only or universal device family
+	var deviceFamily: String?
+	/// Optional build number override (CFBundleVersion)
+	var appBuildVersion: String?
 	/// If app shouldn't have device restrictions
 	var removeSupportedDevices: Bool
 	/// If app shouldn't have URL Schemes
@@ -189,6 +201,12 @@ struct Options: Codable, Equatable {
 		proMotion: false,
 		gameMode: false,
 		ipadFullscreen: false,
+		hideStatusBar: false,
+		autoHideHomeIndicator: false,
+		openDocumentsInPlace: false,
+		exemptEncryption: false,
+		deviceFamily: "Default",
+		appBuildVersion: nil,
 		removeSupportedDevices: true,
 		removeURLScheme: false,
 		removeProvisioning: true,
@@ -218,6 +236,7 @@ struct Options: Codable, Equatable {
 	static let extractionLibraryValues = ["Zip", "ZIPFoundation"]
 	// duplicate values are not recommended!
 	/// Default values for `appAppearance`
+	static let deviceFamilyValues = ["Default", "iPhone", "iPad", "Universal"]
 	static let appAppearanceValues = ["Default", "Light", "Dark"]
 	/// Default values for `minimumAppRequirement`
 	static let appMinimumAppRequirementValues = ["Default", "16.0", "15.0", "14.0", "13.0", "12.0"]
