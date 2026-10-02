@@ -36,15 +36,16 @@ struct DuplicateAppsView: View {
             } else {
                 ForEach(groups) { group in
                     Section(group.identifier) {
-                        ForEach(Array(group.apps.enumerated()), id: \.element.uuid) { index, app in
+                        ForEach(Array(group.apps.enumerated()), id: \.offset) { item in
+                            let app = item.element
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(app.userTitle ?? app.name ?? String(localized: "Unknown"))
-                                    Text([app.version, app.isSigned ? String(localized: "Signed") : String(localized: "Downloaded")].compactMap { $0 }.joined(separator: " • "))
+                                    Text(app.version ?? String(localized: "Unknown"))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                if index == 0 { Text(String(localized: "Newest")).font(.caption).foregroundStyle(.secondary) }
+                                if item.offset == 0 { Text(String(localized: "Newest")).font(.caption).foregroundStyle(.secondary) }
                             }
                         }
                     }

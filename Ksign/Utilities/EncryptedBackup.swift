@@ -24,7 +24,11 @@ enum EncryptedBackupService {
         let envelope = try JSONDecoder().decode(EncryptedBackupEnvelope.self, from: data)
         guard envelope.version == 1 else { throw Error.malformed }
         let key = SymmetricKey(data: SHA256.hash(data: Data(password.utf8) + envelope.salt))
-        do { return try AES.GCM.open(try AES.GCM.SealedBox(nonce: envelope.nonce, ciphertext: envelope.ciphertext, tag: envelope.tag), using: key) }
+        do {
+            let nonce = try AES.GCM.Nonce(data: envelope.nonce)
+            let box = try AES.GCM.SealedBox(nonce: nonce, ciphertext: envelope.ciphertext, tag: envelope.tag)
+            return try AES.GCM.open(box, using: key)
+        }
         catch { throw Error.invalidPassword }
     }
 }
