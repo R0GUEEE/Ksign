@@ -72,7 +72,7 @@ struct CertificateCreatorView: View {
 						Stepper(value: $_validityDays, in: 1...3650) {
 							LabeledContent(.localized("Exact Validity"), value: Self._description(forDays: _validityDays))
 						}
-						LabeledContent(.localized("Certificate Type"), value: .localized("Self-Signed"))
+						LabeledContent(.localized("Certificate Type"), value: String.localized("Self-Signed"))
 						LabeledContent(.localized("Private Key"), value: _keyAlgorithm.rawValue)
 						LabeledContent(.localized("Output"), value: ".p12 + .mobileprovision")
 					}
